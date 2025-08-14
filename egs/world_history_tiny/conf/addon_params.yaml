@@ -1,0 +1,24 @@
+example_number: 1
+language: English
+entity_types:
+  - time_period
+  - geographical_location
+  - civilization_or_empire
+  - historical_concept_or_event
+  - historical_figure
+  - cultural_or_religious_movement
+  - source_or_artifact
+  - textbook_structure
+  
+insert_batch_size: 16
+entity_extract_max_gleaning: 0
+entity_refine_max_times: 1
+
+refine_subgraph_top_k: 120
+refine_subgraph_max_token_for_global_context: 8000
+refine_subgraph_max_token_for_local_context: 8000
+refine_subgraph_max_token_for_text_unit: 8000
+
+chunk_top_k: 6
+
+embed_parallel_limit: 12

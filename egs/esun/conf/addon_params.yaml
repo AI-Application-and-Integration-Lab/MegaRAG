@@ -1,0 +1,26 @@
+example_number: 1
+language: English
+entity_types:
+  - company
+  - person_or_executive
+  - date_or_fiscal_period
+  - financial_metric
+  - monetary_amount
+  - business_unit
+  - product_or_technology
+  - growth_or_performance_rate
+  - acquisition_or_investment
+  - geographic_or_market_term
+  
+insert_batch_size: 16
+entity_extract_max_gleaning: 0
+entity_refine_max_times: 1
+
+refine_subgraph_top_k: 120
+refine_subgraph_max_token_for_global_context: 8000
+refine_subgraph_max_token_for_local_context: 8000
+refine_subgraph_max_token_for_text_unit: 8000
+
+chunk_top_k: 6
+
+embed_parallel_limit: 12

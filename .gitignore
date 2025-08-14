@@ -1,0 +1,10 @@
+**__pycache__**
+lib/LightRAG
+egs/*/dumps/
+egs/*/exp/
+egs/*/data/
+*.egg-info
+
+env.sh
+lib
+!lib/.gitkeep

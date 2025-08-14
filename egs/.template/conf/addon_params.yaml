@@ -1,0 +1,19 @@
+example_number: 1
+language: English
+
+# Change the entity types to suit your needs
+entity_types:
+  - ...
+  
+insert_batch_size: 16
+entity_extract_max_gleaning: 0
+entity_refine_max_times: 1
+
+refine_subgraph_top_k: 120
+refine_subgraph_max_token_for_global_context: 8000
+refine_subgraph_max_token_for_local_context: 8000
+refine_subgraph_max_token_for_text_unit: 8000
+
+chunk_top_k: 6
+
+embed_parallel_limit: 12
