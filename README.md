@@ -55,7 +55,7 @@ pip install -e .
 cp .env.sh env.sh
 
 # Install lightRAG
-cd lib
+mkdir lib && cd lib
 git clone --branch v1.4.3 https://github.com/HKUDS/LightRAG.git
 cd LightRAG
 pip install -e .
