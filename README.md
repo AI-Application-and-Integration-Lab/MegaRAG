@@ -40,7 +40,7 @@ python download_models_hf.py
 ### Step 2: Install MegaRAG
 
 ```bash
-git clone https://github.com/Amiannn/MegaRAG.git
+git clone https://github.com/AI-Application-and-Integration-Lab/MegaRAG.git
 cd MegaRAG
 
 # Install missing packages
