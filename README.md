@@ -2,10 +2,12 @@
 
 <p align="center">
   <img alt="License" src="https://img.shields.io/badge/license-custom-lightgrey">
+  <a href="https://arxiv.org/abs/2512.20626"><img src="https://img.shields.io/badge/arXiv-2512.20626-b31b1b.svg" alt="Paper on ArXiv"></a>
 </p>
 
 **MegaRAG** enables **global visual question answering** on documents by constructing a **Multimodal Knowledge Graph (MMKG)**. It combines graph-based reasoning with page retrieval techniques for precise and rich responses.
 
+> This work has been accepted to **ACL 2026**.
 
 ## 🚀 Overview
 <p align="center">
@@ -116,6 +118,20 @@ bash egs/<your_dataset>/run_querying.sh
 ## Acknowledgments
 
 MegaRAG is inspired by the work of [LightRAG](https://github.com/HKUDS/LightRAG). We are grateful for their excellent tools and contributions.
+
+## Citation
+
+If you find this work useful in your research, please cite our paper:
+
+```
+@inproceedings{hsiao2026megarag,
+  title={MegaRAG: Multimodal Graph-based Retrieval Augmented Generation},
+  author={Hsiao, Chi-Hsiang and Wang, Yi-Cheng and Lin, Tzung-Sheng and Yeh, Yi-Ren and Chen, Chu-Song},
+  booktitle={Proceedings of the 64th Annual Meeting of the Association for Computational Linguistics (ACL)},
+  year={2026},
+  url={[https://arxiv.org/abs/2512.20626](https://arxiv.org/abs/2512.20626)}
+}
+```
 
 ## 📄 License
 
