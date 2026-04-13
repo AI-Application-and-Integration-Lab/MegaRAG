@@ -129,7 +129,7 @@ If you find this work useful in your research, please cite our paper:
   author={Hsiao, Chi-Hsiang and Wang, Yi-Cheng and Lin, Tzung-Sheng and Yeh, Yi-Ren and Chen, Chu-Song},
   booktitle={Proceedings of the 64th Annual Meeting of the Association for Computational Linguistics (ACL)},
   year={2026},
-  url={[https://arxiv.org/abs/2512.20626](https://arxiv.org/abs/2512.20626)}
+  url={https://arxiv.org/abs/2512.20626}
 }
 ```
 
