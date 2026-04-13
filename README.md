@@ -1,8 +1,8 @@
 # MegaRAG: Multimodal Graph-based Retrieval Augmented Generation
 
 <p align="center">
-  <img alt="License" src="https://img.shields.io/badge/license-custom-lightgrey">
   <a href="https://arxiv.org/abs/2512.20626"><img src="https://img.shields.io/badge/arXiv-2512.20626-b31b1b.svg" alt="Paper on ArXiv"></a>
+  <img alt="License" src="https://img.shields.io/badge/license-custom-lightgrey">
 </p>
 
 **MegaRAG** enables **global visual question answering** on documents by constructing a **Multimodal Knowledge Graph (MMKG)**. It combines graph-based reasoning with page retrieval techniques for precise and rich responses.
