@@ -123,7 +123,7 @@ MegaRAG is inspired by the work of [LightRAG](https://github.com/HKUDS/LightRAG)
 
 If you find this work useful in your research, please cite our paper:
 
-```
+```bibtex
 @inproceedings{hsiao2026megarag,
   title={MegaRAG: Multimodal Graph-based Retrieval Augmented Generation},
   author={Hsiao, Chi-Hsiang and Wang, Yi-Cheng and Lin, Tzung-Sheng and Yeh, Yi-Ren and Chen, Chu-Song},
