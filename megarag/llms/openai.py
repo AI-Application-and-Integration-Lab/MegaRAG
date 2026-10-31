@@ -47,7 +47,6 @@ async def gpt_4o_mini_complete(
 ) -> str:
     if history_messages is None:
         history_messages = []
-    keyword_extraction = kwargs.pop("keyword_extraction", None)
     if keyword_extraction:
         kwargs["response_format"] = GPTKeywordExtractionFormat
     return await openai_complete_if_cache(

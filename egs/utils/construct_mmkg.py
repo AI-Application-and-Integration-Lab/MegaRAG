@@ -1,88 +1,11 @@
-import json
 import time
-import yaml
-import torch
-import logging
 import asyncio
 import argparse
 from pathlib import Path
 
-from transformers import AutoModel
-
 from megarag import MegaRAG
-from megarag.llms.hf import (
-    hf_gme_embed,
-)
-from megarag.llms.openai import (
-    gpt_4o_mini_complete,
-) 
-from lightrag.kg.shared_storage import initialize_pipeline_status
-from lightrag.utils import TokenTracker
-
-from lightrag.utils import (
-    wrap_embedding_func_with_attrs,
-)
-
-def initialize_model():
-    device      = "cuda" if torch.cuda.is_available() else "cpu"
-    model_name  = "Alibaba-NLP/gme-Qwen2-VL-2B-Instruct"
-    embed_model = (
-        AutoModel.from_pretrained(
-            model_name,
-            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-            device_map="cuda" if torch.cuda.is_available() else None,
-            trust_remote_code=True
-        ).to(device).eval()
-    )
-    return embed_model
-
-def load_addon_params(config_path: Path) -> dict:
-    with config_path.open("r", encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
-
-    # Accept either layout: top‑level or under "addon_params"
-    return data.get("addon_params", data)
-
-async def initialize_rag(working_dir: Path, addon_params: dict) -> MegaRAG:
-    """Initialise a :class:`MegaRAG` instance for *working_dir* using *addon_params*."""
-    embed_model = initialize_model()
-    @wrap_embedding_func_with_attrs(embedding_dim=1536, max_token_size=32768)
-    async def embed_func(texts=[], images=[], is_query=False):
-        results = await hf_gme_embed(
-            embed_model=embed_model, 
-            texts=texts, 
-            images=images, 
-            is_query=is_query
-        )
-        return results
-    token_tracker = TokenTracker()
-    async def llm_func(
-        prompt,
-        input_images=None,
-        system_prompt=None,
-        history_messages=None,
-        keyword_extraction=False,
-        **kwargs,
-    ):
-        results = await gpt_4o_mini_complete(
-            prompt=prompt,
-            input_images=input_images,
-            system_prompt=system_prompt,
-            history_messages=history_messages,
-            keyword_extraction=keyword_extraction,
-            token_tracker=token_tracker,
-            **kwargs,
-        )
-        return results
-    rag = MegaRAG(
-        working_dir=str(working_dir),
-        llm_model_func=llm_func,
-        embedding_func=embed_func,
-        addon_params=addon_params,
-    )
-    await rag.initialize_storages()
-    await initialize_pipeline_status()
-    return rag, token_tracker
+from megarag.config import load_config
+from megarag.runtime import initialize_rag
 
 def insert_context(
     rag: MegaRAG,
@@ -125,9 +48,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--input-dir",
-        default="./dumps",
-        metavar="DIR",
-        help="Directory where the mineru processed file resides.",
+        default="./pages_content.json",
+        metavar="FILE",
+        help="Path to the prepared pages_content.json file.",
     )
     parser.add_argument(
         "--working-dir",
@@ -158,10 +81,10 @@ def main() -> None:
     working_dir.mkdir(parents=True, exist_ok=True)
 
     # Load addon_params from YAML
-    addon_params = load_addon_params(Path(args.config_file))
+    config = load_config(Path(args.config_file))
 
     # Initialise RAG with the loaded parameters
-    rag, token_tracker = asyncio.run(initialize_rag(working_dir, addon_params))
+    rag, token_tracker = asyncio.run(initialize_rag(working_dir, config=config, ingest=True))
 
     input_dir = Path(args.input_dir)
     insert_context(

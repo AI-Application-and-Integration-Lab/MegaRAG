@@ -1,0 +1,3 @@
+recursive-include docs *.md
+recursive-include egs *.py *.sh *.yaml
+include .env.sh requirements_mineru.txt

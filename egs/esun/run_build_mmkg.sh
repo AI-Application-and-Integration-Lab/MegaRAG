@@ -4,7 +4,11 @@ set -euo pipefail
 # Always resolve relative paths from this script’s location
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 
-source "${SCRIPT_DIR}/../../env.sh"
+cd "${SCRIPT_DIR}"
+
+if [[ -f "${SCRIPT_DIR}/../../env.sh" ]]; then
+  source "${SCRIPT_DIR}/../../env.sh"
+fi
 
 # Sanity checks (fail fast with helpful messages)
 : "${OPENAI_API_KEY:?Set OPENAI_API_KEY in env.sh}"

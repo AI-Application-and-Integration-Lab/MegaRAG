@@ -1,26 +1,20 @@
-import re
 import json
 import time
-import yaml
 import sys
-import torch
-import pathlib
 import asyncio
 import argparse
 
 from pathlib import Path
-from typing import List, Tuple, Any, Dict
+from typing import Any, Dict
 from datetime import datetime, timezone
 
-from transformers import AutoModel
 
 from megarag import MegaRAG
-from megarag.llms.hf import hf_gme_embed
-from megarag.llms.openai import gpt_4o_mini_complete
+from megarag.config import load_config
+from megarag.runtime import initialize_rag
+from megarag.inputs import extract_queries
 
 from lightrag.base import QueryParam
-from lightrag.utils import TokenTracker, wrap_embedding_func_with_attrs
-from lightrag.kg.shared_storage import initialize_pipeline_status
 
 # --- progress bar (optional) ---
 try:
@@ -28,12 +22,12 @@ try:
 except Exception:
     tqdmauto = None
 
-QUERY_RE = re.compile(r"-\s*Question\s+\d+:\s+(.+)")
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 def _torch_speed_tweaks():
+    import torch
     try:
         torch.set_grad_enabled(False)
     except Exception:
@@ -43,100 +37,6 @@ def _torch_speed_tweaks():
         torch.backends.cuda.matmul.allow_tf32 = True
         torch.set_float32_matmul_precision("high")
 
-def initialize_model():
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model_name  = "Alibaba-NLP/gme-Qwen2-VL-2B-Instruct"
-    embed_model = (
-        AutoModel.from_pretrained(
-            model_name,
-            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-            device_map="cuda" if torch.cuda.is_available() else None,
-            trust_remote_code=True,
-        )
-        .to(device, non_blocking=True)
-        .eval()
-    )
-    return embed_model
-
-def load_addon_params(config_path: Path) -> dict:
-    with config_path.open("r", encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
-    return data.get("addon_params", data)
-
-async def initialize_rag(working_dir: Path, addon_params: dict) -> Tuple[MegaRAG, TokenTracker]:
-    """Initialise a MegaRAG instance for *working_dir* using *addon_params*."""
-    embed_model = initialize_model()
-
-    # Guard the GPU embed model; tune if your GPU can handle more parallel fwd passes.
-    embed_parallel_limit = addon_params.get("embed_parallel_limit", 1)
-    _embed_sem = asyncio.Semaphore(embed_parallel_limit)
-
-    @wrap_embedding_func_with_attrs(embedding_dim=1536, max_token_size=32768)
-    async def embed_func(texts=[], images=[], is_query=False):
-        async with _embed_sem:
-            return await hf_gme_embed(
-                embed_model=embed_model,
-                texts=texts,
-                images=images,
-                is_query=is_query,
-            )
-
-    token_tracker = TokenTracker()
-
-    async def llm_func(
-        prompt,
-        input_images=None,
-        system_prompt=None,
-        history_messages=None,
-        keyword_extraction=False,
-        **kwargs,
-    ):
-        return await gpt_4o_mini_complete(
-            prompt=prompt,
-            input_images=input_images,
-            system_prompt=system_prompt,
-            history_messages=history_messages,
-            keyword_extraction=keyword_extraction,
-            token_tracker=token_tracker,
-            **kwargs,
-        )
-
-    rag = MegaRAG(
-        working_dir=str(working_dir),
-        llm_model_func=llm_func,
-        embedding_func=embed_func,
-        addon_params=addon_params,
-    )
-    await rag.initialize_storages()
-    await initialize_pipeline_status()
-    return rag, token_tracker
-
-def extract_queries(file_path: pathlib.Path) -> List[str]:
-    """
-    Read queries from either:
-      - JSONL: lines with {"question": "..."}  (preferred)
-      - Markdown-like lines: "- Question N: text"
-    """
-    if file_path.suffix.lower() == ".jsonl":
-        out = []
-        with file_path.open("r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    obj = json.loads(line)
-                    q = obj.get("question") or obj.get("text")
-                    if q:
-                        out.append(str(q))
-                except json.JSONDecodeError:
-                    m = QUERY_RE.search(line.replace("**", ""))
-                    if m:
-                        out.append(m.group(1).strip())
-        return out
-    # default markdown/flat text mode
-    text = file_path.read_text(encoding="utf-8").replace("**", "")
-    return [q.strip() for q in QUERY_RE.findall(text)]
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -202,14 +102,15 @@ async def run_query_with_retries(rag: MegaRAG, question: str, param: QueryParam,
             await asyncio.sleep(retry_delay * (2 ** (attempt - 1)) + jitter)
 
 async def async_main():
-    _torch_speed_tweaks()
     args = parse_args()
+    _torch_speed_tweaks()
 
     working_dir = Path(args.working_dir)
     working_dir.mkdir(parents=True, exist_ok=True)
 
-    addon_params = load_addon_params(Path(args.config_file))
-    rag, token_tracker = await initialize_rag(working_dir, addon_params)
+    config = load_config(Path(args.config_file))
+    addon_params = config.addon_params
+    rag, token_tracker = await initialize_rag(working_dir, config=config)
 
     param = QueryParam(
         mode="mix_two_step",
@@ -252,7 +153,7 @@ async def async_main():
     pbar = tqdmauto.tqdm(total=len(tasks), desc="Processing queries", unit="q") if use_bar else None
 
     # Collect results as tasks finish so we can update the bar
-    finished: List[Any] = [None] * len(tasks)
+    finished: list[Any] = [None] * len(tasks)
     err_count = 0
 
     for fut in asyncio.as_completed(tasks):

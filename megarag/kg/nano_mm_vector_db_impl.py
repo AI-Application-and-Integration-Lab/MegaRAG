@@ -3,14 +3,10 @@ import os
 import PIL
 import asyncio
 import numpy as np
-import pipmaster as pm
 
 from PIL import Image
 from typing import Any, final
 from dataclasses import dataclass, asdict
-
-if not pm.is_installed("nano-vectordb"):
-    pm.install("nano-vectordb")
 
 from lightrag.utils import (
     logger,

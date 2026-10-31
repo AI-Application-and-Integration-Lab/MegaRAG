@@ -1,0 +1,30 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -e ".[pdf,dev]"
+      - run: python -m pytest -q
+      - run: python -m build
+      - name: Validate installed wheel outside checkout
+        shell: bash
+        run: |
+          python -m pip uninstall -y megarag
+          python -m pip install --no-deps dist/*.whl
+          cd "$(mktemp -d)"
+          megarag --help
+          megarag init
+          megarag demo
+          python -c "from megarag import MegaRAG; from megarag.llms.openai import gpt_4o_mini_complete"

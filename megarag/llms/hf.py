@@ -1,16 +1,6 @@
 import os
 import torch
 import numpy as np
-import pipmaster as pm  # Pipmaster for dynamic library install
-import torch.nn.functional as F
-
-# install specific modules
-if not pm.is_installed("transformers"):
-    pm.install("transformers")
-if not pm.is_installed("torch"):
-    pm.install("torch")
-if not pm.is_installed("numpy"):
-    pm.install("numpy")
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -44,7 +34,9 @@ async def hf_embed(texts: list[str], tokenizer, embed_model) -> np.ndarray:
     else:
         return embeddings.detach().cpu().numpy()
 
-async def hf_gme_embed(embed_model, texts: list[str]=[], images: list[str]=[], is_query: bool=False):
+async def hf_gme_embed(embed_model, texts=None, images=None, is_query: bool=False):
+    texts = [] if texts is None else texts
+    images = [] if images is None else images
     instruction = "Find an image that matches the given text."
     if len(images) == 0:
         embeddings = embed_model.get_text_embeddings(

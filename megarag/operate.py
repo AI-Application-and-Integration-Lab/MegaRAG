@@ -61,7 +61,7 @@ from lightrag.constants import (
 )
 
 from megarag.prompt import PROMPTS
-from megarag.utils import use_llm_func_with_cache
+from megarag.utils import use_llm_func_with_cache, query_cache_hash
 
 from typing import (
     Any, 
@@ -1857,7 +1857,7 @@ async def naive_query(
         use_model_func = partial(use_model_func, _priority=5)
 
     # Handle cache
-    args_hash = compute_args_hash(query_param.mode, query)
+    args_hash = query_cache_hash(query, query_param, global_config, system_prompt)
     cached_response, quantized, min_val, max_val = await handle_cache(
         hashing_kv, args_hash, query, query_param.mode, cache_type="query"
     )
@@ -2054,7 +2054,7 @@ async def kg_query(
         use_model_func = partial(use_model_func, _priority=5)
 
     # Handle cache
-    args_hash = compute_args_hash(query_param.mode, query)
+    args_hash = query_cache_hash(query, query_param, global_config, system_prompt)
     cached_response, quantized, min_val, max_val = await handle_cache(
         hashing_kv, args_hash, query, query_param.mode, cache_type="query"
     )
@@ -2189,7 +2189,7 @@ async def kg_two_step_query(
         # Apply higher priority (5) to query relation LLM function
         use_model_func = partial(use_model_func, _priority=5)
     # Handle cache
-    args_hash = compute_args_hash(query_param.mode, query)
+    args_hash = query_cache_hash(query, query_param, global_config, system_prompt)
     cached_response, quantized, min_val, max_val = await handle_cache(
         hashing_kv, args_hash, query, query_param.mode, cache_type="query"
     )
