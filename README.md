@@ -29,26 +29,19 @@ LightRAG is installed automatically. On Windows, activate the environment with `
 
 ## 🚀 Quickstart
 
-Create a two-page sample PDF, build its graph, and ask a question:
+Create a configuration, index your PDF, and ask a question. Replace `./report.pdf` with the path to your document:
 
 ```bash
 megarag init
-megarag doctor --config megarag.yaml
-megarag demo
-megarag ingest demo/project.pdf --config megarag.yaml --workspace demo/index
-megarag query "Who manages Project Atlas?" --config megarag.yaml --workspace demo/index
-```
-
-The sample identifies **Maya Chen** as the project manager. Answer wording depends on the selected model. The first ingestion downloads the embedding model and makes API calls; `demo` and `doctor` do not call an API.
-
-<a id="use-your-own-pdf"></a>
-
-## 📄 Use your own PDF
-
-```bash
 megarag ingest ./report.pdf --config megarag.yaml --workspace ./report-index
 megarag query "What are the main findings?" --config megarag.yaml --workspace ./report-index
 ```
+
+The first ingestion downloads the embedding model and makes API calls. To use another LLM provider, see [model configuration](docs/models.md) before indexing.
+
+<a id="use-your-own-pdf"></a>
+
+## 📄 PDF tips
 
 Add `--max-pages 3` to try a few pages first. Use a fresh workspace when moving from a page-limited trial to the full document, or when replacing an existing PDF.
 
@@ -59,12 +52,12 @@ The default PDF reader extracts selectable text and renders page images. For sca
 Put one question per line in `questions.txt`, including questions in Chinese or other languages:
 
 ```text
-Who manages Project Atlas?
-What is the budget and when does the pilot start?
+What are the main findings?
+What evidence supports these findings?
 ```
 
 ```bash
-megarag query --questions questions.txt --output answers.jsonl --config megarag.yaml --workspace demo/index
+megarag query --questions questions.txt --output answers.jsonl --config megarag.yaml --workspace ./report-index
 ```
 
 Each completed answer is saved immediately. JSONL input with `{"question": "..."}` is also supported. Output files are not overwritten.
