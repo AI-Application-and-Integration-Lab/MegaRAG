@@ -1,0 +1,67 @@
+[
+  {
+    "id": "paper",
+    "original_file": "2401.18059v1.pdf",
+    "source_url": "https://huggingface.co/datasets/yubo2333/MMLongBench-Doc/resolve/main/documents/2401.18059v1.pdf",
+    "source_sha256": "01319e2e6e6ecfd504ee1bbda41d023f9e060bd3505ab3c161baa1d6d696cf75",
+    "source_pdf_pages_1_based": [
+      3,
+      4
+    ],
+    "excerpt_file": "files/paper.pdf",
+    "excerpt_sha256": "1d73e6619414a39a7dde065b0417f20843303795240d2bcbd4b0739157ed464c",
+    "questions_file": "questions/paper.txt"
+  },
+  {
+    "id": "finance",
+    "original_file": "NETFLIX_2015_10K.pdf",
+    "source_url": "https://huggingface.co/datasets/yubo2333/MMLongBench-Doc/resolve/main/documents/NETFLIX_2015_10K.pdf",
+    "source_sha256": "b22ca874ef08f383bd0b1071677d44f4a242af668f855f00dc9c6d4ac94148e2",
+    "source_pdf_pages_1_based": [
+      40,
+      43
+    ],
+    "excerpt_file": "files/finance.pdf",
+    "excerpt_sha256": "ceba61e6e232cb9dfda5e02a351794459ec3ff4cdeb3c3286f9e3ced2577b3c2",
+    "questions_file": "questions/finance.txt"
+  },
+  {
+    "id": "manual",
+    "original_file": "stereo_headset.pdf",
+    "source_url": "https://huggingface.co/datasets/yubo2333/MMLongBench-Doc/resolve/main/documents/stereo_headset.pdf",
+    "source_sha256": "d17cde8229847cb53926e578d70410cf46f9dbfb8a0d62cf675e18c3625507e3",
+    "source_pdf_pages_1_based": [
+      19,
+      20
+    ],
+    "excerpt_file": "files/manual.pdf",
+    "excerpt_sha256": "8a87ffb9a8b9a779086526522c0c4c8b7dac31861f52cfe849404266b6b844d9",
+    "questions_file": "questions/manual.txt"
+  },
+  {
+    "id": "brochure",
+    "original_file": "camry_ebrochure.pdf",
+    "source_url": "https://huggingface.co/datasets/yubo2333/MMLongBench-Doc/resolve/main/documents/camry_ebrochure.pdf",
+    "source_sha256": "d3f8049bc0c48b735b7c4e0d6399ed9e8188afd332f58829f44e1c39cfb13528",
+    "source_pdf_pages_1_based": [
+      1,
+      6
+    ],
+    "excerpt_file": "files/brochure.pdf",
+    "excerpt_sha256": "b7aa3568767a831d72e4ec2a26e24c903f32b562f6a9539e5252a5ae704acf02",
+    "questions_file": "questions/brochure.txt"
+  },
+  {
+    "id": "slides",
+    "original_file": "reportq32015-151009093138-lva1-app6891_95.pdf",
+    "source_url": "https://huggingface.co/datasets/yubo2333/MMLongBench-Doc/resolve/main/documents/reportq32015-151009093138-lva1-app6891_95.pdf",
+    "source_sha256": "2c9691d3a9dcd6bf400d3b20d2fc7a24bdf01bf0195b6e1ac602997847e2d021",
+    "source_pdf_pages_1_based": [
+      7,
+      10
+    ],
+    "excerpt_file": "files/slides.pdf",
+    "excerpt_sha256": "e64433283851dbbd0bce0c9ee28d0ed382039d4f613cc0ca9f2ba198f585e164",
+    "questions_file": "questions/slides.txt"
+  }
+]

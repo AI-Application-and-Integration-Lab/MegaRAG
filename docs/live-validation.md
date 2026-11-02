@@ -1,6 +1,6 @@
 # Live integration validation
 
-Validated on November 2, 2026 (UTC), using synthetic documents and real model inference. These checks cover integration and selected factual answers; they are not a retrieval-quality benchmark.
+Validated on November 2, 2026 (UTC), using synthetic documents, the included document excerpts, and real model inference. These checks cover integration and selected factual answers; they are not a retrieval-quality benchmark.
 
 ## Results
 
@@ -15,6 +15,22 @@ Validated on November 2, 2026 (UTC), using synthetic documents and real model in
 | OpenAI direct endpoint | Blocked by `credit_balance_exhausted`; successful inference through this endpoint remains unverified. |
 
 The test document identifies Lina Torres as Project Vega's manager, with a USD 42,000 budget, USD 20,000 allocated to deployment, and a target of 320 new library members. The scanned version has no selectable text. Both input paths used the same three questions and default graph refinement.
+
+## Document tutorial checks
+
+The five [document examples](examples.md) were also run through the CLI with `egs/configs/openrouter.yaml`, GME on an RTX 5090, and separate fresh workspaces. Every PDF contains two pages. The image-only presentation was first parsed with MinerU 4.1.3 in `standard` / `ocr` mode; the other four PDFs were ingested directly.
+
+| Example | Build and saved-index query | Reference facts checked |
+| --- | --- | --- |
+| RAPTOR paper | Passed | GMMs and UMAP; tree traversal and collapsed tree |
+| Netflix financial report | Passed | 2015 revenue of 6,779,511 and working capital of 1,902,216, both in thousands of dollars |
+| Sony user manual | Passed | About 3 hours and indicator off; longer charging and less playback after a short charge with an adaptor below 1.5 A |
+| Camry brochure | Passed | Red car; 4G Wi-Fi Connect |
+| Appota image-only slides | Passed | iOS 9 at 51%; Google Play at 1.3 million apps in 2014, using the clarified chart question |
+
+The ten published questions returned their reference facts after refining one chart question. Initially, the 2014 app-count answer mixed the chart's 1.3 million with the surrounding text's 2015 figure of 1.6 million. Naming the chart and year alone still left a conflict; explicitly asking to use the chart image when text summaries disagree resolved it in this run. The question file includes that wording.
+
+These checks do not establish full answer faithfulness. For example, the low-current charging answer included the two expected facts but also added an unsupported claim about incomplete charging. The [reference answers](../egs/document_examples/ANSWERS.md) contain only facts supported by the excerpts. Model responses still need to be checked against the source pages.
 
 ## Tested environment
 
