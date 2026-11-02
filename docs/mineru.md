@@ -1,54 +1,64 @@
 # Parse documents with MinerU
 
-Use this workflow for scanned PDFs and layout-aware extraction. The adapter expects **MinerU release-1.3.6** output. Newer MinerU releases use different interfaces and are not interchangeable with this recipe.
+The adapter targets **MinerU 4.1.3** and writes the same `pages_content.json` accepted by `megarag ingest`. It preserves page images, extracted text, captions, tables, and available figure crops.
 
-## Install the parser
+## Install separately
 
-Keep MinerU in a separate environment from MegaRAG. Run these commands from the MegaRAG checkout:
-
-```bash
-git clone -b release-1.3.6 https://github.com/opendatalab/MinerU.git lib/MinerU
-conda create --name mineru python=3.10 -y
-conda activate mineru
-pip install -e ./lib/MinerU
-pip install -r requirements_mineru.txt
-pip install huggingface_hub
-
-curl -L https://raw.githubusercontent.com/opendatalab/MinerU/release-1.3.6/scripts/download_models_hf.py -o lib/MinerU/download_models_hf.py
-sed -i 's|https://github.com/opendatalab/MinerU/raw/master/magic-pdf.template.json|https://raw.githubusercontent.com/opendatalab/MinerU/release-1.3.6/magic-pdf.template.json|' lib/MinerU/download_models_hf.py
-python lib/MinerU/download_models_hf.py
-```
-
-The download-script patch uses GNU `sed` syntax on Linux. On other systems, edit the URL in that file directly.
-
-## Parse a PDF
-
-With the `mineru` environment active:
+Run from the MegaRAG checkout. Use Python 3.11–3.14 for MinerU; keep its dependencies separate from MegaRAG's GME embedding environment.
 
 ```bash
-magic-pdf -p ./report.pdf -o ./parsed -l en
+python3.11 -m venv .venv-mineru
+.venv-mineru/bin/python -m pip install -r requirements_mineru.txt
 ```
 
-Return to the MegaRAG environment, then render page images and combine the parser outputs. These examples assume the input is named `report.pdf`:
+For scanned PDFs and layout recognition, also install the inference runtime:
 
 ```bash
-conda deactivate
-source .venv/bin/activate
-python egs/utils/pdf2img.py ./report.pdf ./parsed/report/auto/page_images --dpi 150 --jpeg --jobs 2
-python egs/utils/build_page_assets.py --working-dir ./parsed/report/auto --output ./parsed/report/pages_content.json
-megarag ingest ./parsed/report/pages_content.json --config megarag.yaml --workspace ./report-index
-megarag query "What are the main findings?" --config megarag.yaml --workspace ./report-index
+.venv-mineru/bin/python -m pip install 'mineru[torch]==4.1.3'
 ```
 
-Run these commands from the same checkout directory so relative image paths resolve. Preserve the parsed assets for subsequent queries.
+See MinerU's [runtime installation guide](https://opendatalab.github.io/MinerU/quick_start/) for accelerator requirements. Model-backed parsing may download weights on first use.
+
+## Parse and ingest
+
+```bash
+.venv-mineru/bin/python egs/utils/parse_mineru.py report.pdf \
+  --output parsed/report --tier standard --max-pages 3
+
+.venv/bin/megarag ingest parsed/report/pages_content.json \
+  --config egs/configs/openai.yaml --workspace report-index
+.venv/bin/megarag query "What are the main findings?" \
+  --config egs/configs/openai.yaml --workspace report-index
+```
+
+Set the API key required by the chosen configuration before ingestion. Remove `--max-pages 3` to parse the full PDF. Use new output and workspace directories when switching from a trial to the full document; existing parser output is never overwritten.
+
+For a selectable-text PDF, `flash` with `txt` skips OCR and model inference:
+
+```bash
+.venv-mineru/bin/python egs/utils/parse_mineru.py report.pdf \
+  --output parsed/report-flash --tier flash --ocr-mode txt
+```
+
+This mode checks the integration without downloading parser models. Use `standard` for scanned documents; the flash example does not validate OCR quality.
+
+The adapter uses the [MinerU Python SDK](https://opendatalab.github.io/MinerU/usage/sdk_api/) and its saved MiddleJson assets. All manifest image paths are absolute. Keep the parsed directory available while using its index.
 
 ## Research recipes
 
-The `egs/` recipes remain available. Set `OPENAI_API_KEY` and `MINERU_PATH` in your shell or copy `.env.sh` to `env.sh` and edit it. Place the recipe's source PDF and questions under its `data/` directory.
+Activate MegaRAG's environment, place the recipe PDF and questions under `egs/<recipe>/data/`, and run:
 
 ```bash
+source .venv/bin/activate
+export MINERU_PYTHON="$PWD/.venv-mineru/bin/python"
+export MEGARAG_CONFIG="$PWD/egs/configs/openrouter.yaml"
+export OPENROUTER_API_KEY="your-api-key"
 bash egs/world_history_tiny/run_build_mmkg.sh
 bash egs/world_history_tiny/run_querying.sh
 ```
 
-Recipe paths resolve from the script directory. The former `run_quering.sh` filename remains as an alias. Existing output directories without a model manifest must be rebuilt into a fresh directory; no index is migrated automatically.
+`MEGARAG_CONFIG` is optional; recipes otherwise use their own `conf/addon_params.yaml`. `world_history_tiny` parses the first ten pages. The other recipes parse all pages. Use an absolute config path because each script changes to its recipe directory.
+
+## Existing MinerU output
+
+The old `build_page_assets.py` remains available for release-1.3.6 output. It does not accept MinerU 4.x MiddleJson. New recipes use `parse_mineru.py` and `MINERU_PYTHON` instead of `magic-pdf` and `MINERU_PATH`. Reparse the source PDF into a new directory when upgrading.

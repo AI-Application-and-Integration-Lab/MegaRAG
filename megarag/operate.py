@@ -146,10 +146,10 @@ def chunking_by_token_or_page(
             text     = content[str(index)]['text']
             
             # Skip the empty page.
-            if len(fig_imgs) == 0 and len(text) == 0:
+            if not page_img and not fig_imgs and not text.strip():
                 continue
-            elif len(text) == 0:
-                text = "Please see the Figures."
+            elif not text.strip():
+                text = "Please see the page image and figures."
 
             tokens = tokenizer.encode(text)
             chunk_content = tokenizer.decode(tokens)

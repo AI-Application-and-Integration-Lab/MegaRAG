@@ -9,6 +9,8 @@ env.sh
 lib
 !lib/.gitkeep
 .venv/
+.venv-mineru/
+parsed/
 build/
 dist/
 .pytest_cache/

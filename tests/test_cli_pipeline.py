@@ -66,10 +66,20 @@ def test_ingest_and_query_pipeline(tmp_path, monkeypatch):
     monkeypatch.setattr(openai, "openai_complete_if_cache", complete)
 
     pdf = create_demo(tmp_path / "demo")
+    # Repeated text still represents distinct pages; image-only pages also count.
+    import fitz
+    with fitz.open(pdf) as document:
+        document.fullcopy_page(0)
+        page = document.new_page()
+        page.draw_rect(fitz.Rect(20, 20, 200, 200), color=(1, 0, 0), fill=(1, 0, 0))
+        document.saveIncr()
     workspace = tmp_path / "index"
     assert main(["ingest", str(pdf), "--workspace", str(workspace)]) == 0
     assert list(workspace.glob("graph_*.graphml"))
     assert list(workspace.glob("vdb_*.json"))
+    chunks = json.loads((workspace / "kv_store_text_chunks.json").read_text())
+    assert len(chunks) == 4
+    assert {chunk["chunk_order_index"] for chunk in chunks.values()} == {0, 1, 2, 3}
     output = tmp_path / "answers.jsonl"
     assert (
         main(

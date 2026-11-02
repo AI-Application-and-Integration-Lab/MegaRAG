@@ -556,7 +556,14 @@ class MegaRAG(LightRAG):
                                             }
 
                                             chunks: dict[str, Any] = {
-                                                compute_mdhash_id(dp["content"], prefix="chunk-"): {
+                                                compute_mdhash_id(
+                                                    json.dumps([
+                                                        doc_id, dp["chunk_order_index"],
+                                                        dp["content"], dp.get("page_img"),
+                                                        dp.get("fig_imgs", []),
+                                                    ], ensure_ascii=False),
+                                                    prefix="chunk-",
+                                                ): {
                                                     **dp,
                                                     "full_doc_id": doc_id,
                                                     "file_path": file_path,  # Attach the originating path to each chunk
