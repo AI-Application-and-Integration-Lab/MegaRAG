@@ -1,6 +1,6 @@
 # MegaRAG
 
-> **Update (2026-11-02):** Simpler setup and configurable LLM APIs. [Quickstart](#quickstart) · [API examples](docs/models.md)
+> ✨ **Update (2026-11-02):** Simpler setup and configurable LLM APIs. [Quickstart](#quickstart) · [API examples](docs/models.md)
 
 Multimodal graph-based retrieval for document question answering. MegaRAG combines a knowledge graph with page-image retrieval to answer questions across text, figures, and tables.
 
