@@ -1,5 +1,18 @@
 # MegaRAG
 
+## Update — November 2026
+
+Available on `feat/cli-config`; this is a development update, not a tagged release.
+
+- **Simpler setup:** install from the checkout and use `megarag init`, `doctor`, `ingest`, and `query`.
+- **Configurable LLM APIs:** examples for OpenAI, OpenRouter, SGLang, and vLLM, including local authentication and request options. See [model configuration](docs/models.md).
+- **MinerU 4.1.3:** a separate parser environment exports text, tables, captions, and images for ingestion. See the [MinerU workflow](docs/mineru.md).
+- **Reliability fixes:** preserve distinct pages and complete answers, handle empty retrieval, and keep vector scoring consistent after reload.
+
+Use the same model configuration for ingestion and querying. Model changes require a new workspace. See [validation](docs/validation.md) for tested behavior and remaining integration checks.
+
+---
+
 Multimodal graph-based retrieval for document question answering. MegaRAG combines a knowledge graph with page-image retrieval to answer questions across text, figures, and tables.
 
 [Paper](https://arxiv.org/abs/2512.20626) · [Model configuration](docs/models.md) · [MinerU workflow](docs/mineru.md) · [Troubleshooting](docs/troubleshooting.md)
@@ -8,10 +21,10 @@ Accepted to ACL 2026.
 
 ## Install
 
-Use Python 3.10 or newer; Python 3.11 is recommended. The default setup uses a local GME embedding model and a vision-capable OpenAI API model. A CUDA GPU is recommended for embedding inference; CPU execution is supported but slower.
+Use Python 3.10–3.12; Python 3.11 is recommended. The default setup uses a local GME embedding model and a vision-capable OpenAI API model. A CUDA GPU is recommended for embedding inference; CPU execution is supported but slower.
 
 ```bash
-git clone https://github.com/AI-Application-and-Integration-Lab/MegaRAG.git
+git clone --branch feat/cli-config https://github.com/AI-Application-and-Integration-Lab/MegaRAG.git
 cd MegaRAG
 python3.11 -m venv .venv
 source .venv/bin/activate
