@@ -1,17 +1,6 @@
 # MegaRAG
 
-## Update — November 2026
-
-Available on `feat/cli-config`; this is a development update, not a tagged release.
-
-- **Simpler setup:** install from the checkout and use `megarag init`, `doctor`, `ingest`, and `query`.
-- **Configurable LLM APIs:** examples for OpenAI, OpenRouter, SGLang, and vLLM, including local authentication and request options. See [model configuration](docs/models.md).
-- **MinerU 4.1.3:** a separate parser environment exports text, tables, captions, and images for ingestion. See the [MinerU workflow](docs/mineru.md).
-- **Reliability fixes:** preserve distinct pages and complete answers, handle empty retrieval, and keep vector scoring consistent after reload.
-
-Use the same model configuration for ingestion and querying. Model changes require a new workspace. See [validation](docs/validation.md) for tested behavior and remaining integration checks.
-
----
+> **Update:** Simpler setup and configurable LLM APIs. [Quickstart](#quickstart) · [API examples](docs/models.md)
 
 Multimodal graph-based retrieval for document question answering. MegaRAG combines a knowledge graph with page-image retrieval to answer questions across text, figures, and tables.
 

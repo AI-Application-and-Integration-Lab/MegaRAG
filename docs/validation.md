@@ -1,6 +1,6 @@
 # Validation
 
-The setup update is checked with an offline test suite and package builds. Model quality and GPU performance require separate evaluation.
+Validation includes offline tests, package builds, and a [live integration run](live-validation.md) with OpenRouter, RTX 5090 embeddings, and MinerU Standard OCR.
 
 ## Automated coverage
 
@@ -41,6 +41,8 @@ Run these tests in the separate parser environment:
 
 The dedicated CI job uses MinerU 4.1.3. Tests parse a real 12-page PDF in `flash/txt` mode, check the page limit, and verify table/caption/image export against a typed MiddleJson fixture. They do not download inference weights. Core-only test runs skip this module.
 
-## Remaining integration checks
+## Live integration and remaining coverage
 
-Before a release, run the README example with downloaded GME weights and a real vision API. Also verify the chosen CUDA/PyTorch combination, replacement API endpoints, and MinerU's model-backed OCR tiers. These tests verify wiring and persistence, not model accuracy, hosted API compatibility, latency, or memory requirements.
+The [live validation report](live-validation.md) records the tested model revisions, CUDA environment, OCR settings, and results. Both native and scanned two-page PDFs passed their factual checks, and a fresh-process CLI query reused the saved answer without another API call.
+
+OpenAI direct inference remains unverified because the test account had no remaining credit. SGLang/vLLM deployments, other hardware and languages, large documents, and broader answer/OCR quality still need separate evaluation.

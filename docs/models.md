@@ -67,7 +67,7 @@ llm:
 
 Only pass parameters supported by your model server. `extra_body` cannot override `model`, `messages`, `stream`, or `response_format`; changing its values requires a fresh workspace. Python callers may override individual top-level `extra_body` keys per request.
 
-The tests check request construction through the OpenAI SDK with a local HTTP substitute. They do not validate hosted model availability, server deployment, or answer quality. See the provider documentation for [OpenRouter](https://openrouter.ai/docs/quickstart), [SGLang](https://docs.sglang.io/docs/basic_usage/openai_api_completions), and [vLLM](https://docs.vllm.ai/en/latest/serving/openai_compatible_server/).
+Offline tests check request construction through the OpenAI SDK with a local HTTP substitute. A separate [live run](live-validation.md) verifies OpenRouter text/image requests, both keyword-output modes, and the GPU ingestion/query pipeline. SGLang and vLLM deployment examples remain unverified. See the provider documentation for [OpenRouter](https://openrouter.ai/docs/quickstart), [SGLang](https://docs.sglang.io/docs/basic_usage/openai_api_completions), and [vLLM](https://docs.vllm.ai/en/latest/serving/openai_compatible_server/).
 
 ## Embedding model
 
