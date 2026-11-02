@@ -69,6 +69,18 @@ from typing import (
     AsyncIterator
 )
 
+async def _gather_tasks(tasks):
+    """Cancel remaining work and collect every exception before propagating failure."""
+    try:
+        return await asyncio.gather(*tasks)
+    except BaseException:
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        raise
+
+
 def chunking_by_token_size(
     tokenizer: Tokenizer,
     content: str,
@@ -1241,21 +1253,7 @@ async def merge_nodes_and_edges(
         return
 
     # Execute all tasks in parallel with semaphore control and early failure detection
-    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
-
-    # Check if any task raised an exception
-    for task in done:
-        if task.exception():
-            # If a task failed, cancel all pending tasks
-            for pending_task in pending:
-                pending_task.cancel()
-
-            # Wait for cancellation to complete
-            if pending:
-                await asyncio.wait(pending)
-
-            # Re-raise the exception to notify the caller
-            raise task.exception()
+    await _gather_tasks(tasks)
 
     # If all tasks completed successfully, collect results
     # (No need to collect results since these tasks don't return values)
@@ -1497,22 +1495,7 @@ async def extract_entities(
 
     # Wait for tasks to complete or for the first exception to occur
     # This allows us to cancel remaining tasks if any task fails
-    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
-
-    # Check if any task raised an exception
-    for task in done:
-        if task.exception():
-            # If a task failed, cancel all pending tasks
-            # This prevents unnecessary processing since the parent function will abort anyway
-            for pending_task in pending:
-                pending_task.cancel()
-
-            # Wait for cancellation to complete
-            if pending:
-                await asyncio.wait(pending)
-
-            # Re-raise the exception to notify the caller
-            raise task.exception()
+    await _gather_tasks(tasks)
 
     # If all tasks completed successfully, collect results
     chunk_results = [task.result() for task in tasks]
@@ -1826,22 +1809,7 @@ async def extract_entities_refinement(
 
     # Wait for tasks to complete or for the first exception to occur
     # This allows us to cancel remaining tasks if any task fails
-    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
-
-    # Check if any task raised an exception
-    for task in done:
-        if task.exception():
-            # If a task failed, cancel all pending tasks
-            # This prevents unnecessary processing since the parent function will abort anyway
-            for pending_task in pending:
-                pending_task.cancel()
-
-            # Wait for cancellation to complete
-            if pending:
-                await asyncio.wait(pending)
-
-            # Re-raise the exception to notify the caller
-            raise task.exception()
+    await _gather_tasks(tasks)
 
     # If all tasks completed successfully, collect results
     chunk_results = [task.result() for task in tasks]

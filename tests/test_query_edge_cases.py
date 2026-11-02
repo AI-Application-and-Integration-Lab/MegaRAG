@@ -133,3 +133,33 @@ def test_stream_is_returned_without_serializing_iterator(query_setup, monkeypatc
             QueryParam(mode='hybrid', stream=True), query_setup, hashing_kv=cache)
         return ''.join([part async for part in result])
     assert asyncio.run(run()) == 'First second'
+
+
+@pytest.mark.parametrize('cancel_parent', [False, True])
+def test_parallel_failure_cancels_and_drains_tasks(cancel_parent):
+    async def run():
+        started = asyncio.Event()
+        cleaned = []
+        async def pending():
+            started.set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cleaned.append(True)
+        async def fail(message):
+            await started.wait()
+            raise RuntimeError(message)
+        tasks = [asyncio.create_task(pending())]
+        if not cancel_parent:
+            tasks += [asyncio.create_task(fail('first')), asyncio.create_task(fail('second'))]
+        group = asyncio.create_task(operate._gather_tasks(tasks))
+        await started.wait()
+        if cancel_parent:
+            group.cancel()
+        with pytest.raises(asyncio.CancelledError if cancel_parent else RuntimeError):
+            await group
+        assert cleaned == [True]
+        assert all(task.done() for task in tasks)
+        # asyncio marks exceptions as retrieved when the gather drains them.
+        assert all(not task._log_traceback for task in tasks)
+    asyncio.run(run())
