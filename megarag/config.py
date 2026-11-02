@@ -3,6 +3,7 @@
 from dataclasses import asdict, dataclass, field
 import hashlib
 import json
+import os
 from pathlib import Path
 import uuid
 
@@ -32,6 +33,16 @@ class LLMConfig:
     structured_output: bool = True
     max_async: int = 4
     timeout: float = 120.0
+    extra_body: dict = field(default_factory=dict)
+
+    def resolve_api_key(self):
+        """An empty variable name explicitly selects an unauthenticated server."""
+        if self.api_key_env == "":
+            return "EMPTY"
+        key = os.environ.get(self.api_key_env)
+        if not key:
+            raise ValueError(f"Set {self.api_key_env} before running inference.")
+        return key
 
 
 @dataclass
@@ -77,7 +88,6 @@ class Config:
         for name, value in {
             "llm.model": self.llm.model,
             "llm.base_url": self.llm.base_url,
-            "llm.api_key_env": self.llm.api_key_env,
             "embedding.model": self.embedding.model,
             "embedding.revision": self.embedding.revision,
             "embedding.device": self.embedding.device,
@@ -86,6 +96,21 @@ class Config:
                 raise ValueError(f"{name} must be a nonempty string")
         if not isinstance(self.llm.structured_output, bool):
             raise ValueError("llm.structured_output must be true or false")
+        if not isinstance(self.llm.api_key_env, str) or (
+            self.llm.api_key_env and not self.llm.api_key_env.strip()
+        ):
+            raise ValueError("llm.api_key_env must be an environment variable name or an empty string")
+        if not isinstance(self.llm.extra_body, dict) or not all(
+            isinstance(key, str) for key in self.llm.extra_body
+        ):
+            raise ValueError("llm.extra_body must be a mapping with string keys")
+        reserved = {"model", "messages", "stream", "response_format"} & self.llm.extra_body.keys()
+        if reserved:
+            raise ValueError(f"llm.extra_body cannot override: {', '.join(sorted(reserved))}")
+        try:
+            json.dumps(self.llm.extra_body, allow_nan=False)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("llm.extra_body must contain JSON-compatible values") from exc
         if any(key.startswith("_") for key in self.addon_params):
             raise ValueError("addon_params keys starting with '_' are reserved")
         return self

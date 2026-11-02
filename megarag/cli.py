@@ -73,8 +73,9 @@ def doctor(config):
         print(f"{'OK' if exists else 'MISSING'}  {module}")
         if not exists:
             missing.append(module)
-    has_key = bool(os.environ.get(config.llm.api_key_env))
-    print(f"{'OK' if has_key else 'MISSING'}  {config.llm.api_key_env}")
+    has_key = not config.llm.api_key_env or bool(os.environ.get(config.llm.api_key_env))
+    auth_label = config.llm.api_key_env or "API authentication disabled in configuration"
+    print(f"{'OK' if has_key else 'MISSING'}  {auth_label}")
     if missing:
         print('Install the inference extras: pip install -e ".[local,pdf]"')
     print(f"LLM: {config.llm.model}")
@@ -198,8 +199,7 @@ def main(argv=None):
         config = load_config(args.config)
         if args.command == "doctor":
             return doctor(config)
-        if not os.environ.get(config.llm.api_key_env):
-            raise ValueError(f"Set {config.llm.api_key_env} before running inference.")
+        config.llm.resolve_api_key()
         asyncio.run(run(args, config))
         return 0
     except (ValueError, OSError, RuntimeError, ImportError, yaml.YAMLError) as exc:

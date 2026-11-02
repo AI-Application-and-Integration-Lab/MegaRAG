@@ -77,7 +77,7 @@ embedding:
   batch_size: 2
 ```
 
-See [model configuration](docs/models.md) for a local API example and compatibility rules. Changing the model requires a new workspace; an existing index is never silently reused with a different configuration.
+See [model configuration](docs/models.md) for OpenAI, OpenRouter, SGLang, and vLLM examples and compatibility rules. Changing the model requires a new workspace; an existing index is never silently reused with a different configuration.
 
 ## Development
 

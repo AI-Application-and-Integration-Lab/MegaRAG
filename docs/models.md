@@ -18,28 +18,56 @@ llm:
 
 `api_key_env` names an environment variable; keep the key itself out of the YAML file. `timeout` is in seconds. `structured_output` controls keyword extraction through the API's structured-output interface.
 
-## Local OpenAI-compatible server
+## Switch API endpoints
 
-Start a server that supports chat completions and image inputs. Match `model` to its served model name. For example, if your server exposes a vision model as `my-vision-model`:
+Copy a preset or pass it directly with `--config`:
+
+| Endpoint | Configuration | Authentication |
+| --- | --- | --- |
+| OpenAI | [`egs/configs/openai.yaml`](../egs/configs/openai.yaml) | `OPENAI_API_KEY` |
+| OpenRouter | [`egs/configs/openrouter.yaml`](../egs/configs/openrouter.yaml) | `OPENROUTER_API_KEY` |
+| SGLang | [`egs/configs/sglang.yaml`](../egs/configs/sglang.yaml) | Disabled in example |
+| vLLM | [`egs/configs/vllm.yaml`](../egs/configs/vllm.yaml) | Disabled in example |
+
+For example, use OpenRouter for the sample PDF:
+
+```bash
+export OPENROUTER_API_KEY="your-api-key"
+megarag demo
+megarag doctor --config egs/configs/openrouter.yaml
+megarag ingest demo/project.pdf --config egs/configs/openrouter.yaml --workspace demo/openrouter-index
+megarag query "Who manages Project Atlas?" --config egs/configs/openrouter.yaml --workspace demo/openrouter-index
+```
+
+Skip `megarag demo` if the sample already exists. Use the same configuration for ingestion and querying; select a new workspace for each model configuration.
+
+For SGLang or vLLM, start your model server separately, then edit `model` and `base_url` to match it. The SGLang preset follows [KG4VD's Qwen configuration](https://github.com/AI-Application-and-Integration-Lab/KG4VD/blob/aba29b2e6f095b70c82542d4735a3937944e4f3e/src/kg4vd/config/presets/llm.sglang.qwen36.yaml); the vLLM preset uses a placeholder served model name. These files configure a client; they do not launch a server.
+
+```bash
+megarag ingest demo/project.pdf --config egs/configs/sglang.yaml --workspace demo/sglang-index
+megarag query "Who manages Project Atlas?" --config egs/configs/sglang.yaml --workspace demo/sglang-index
+```
+
+The endpoint must support Chat Completions **and image inputs**, including multiple images per request. A text-only model cannot replace MegaRAG's vision model. With `structured_output: false`, keyword extraction uses prompt-guided JSON; enable structured output only when the endpoint supports JSON schema.
+
+Set `api_key_env: ""` only for a server without authentication. MegaRAG sends an SDK placeholder key (`EMPTY`) without reading `OPENAI_API_KEY`. For an authenticated server, set `api_key_env: LOCAL_API_KEY` and export that variable.
+
+Provider-specific request parameters go in `extra_body`, following the OpenAI-compatible approach used by [KG4VD](https://github.com/AI-Application-and-Integration-Lab/KG4VD). For compatible Qwen chat templates:
 
 ```yaml
 llm:
-  model: my-vision-model
-  base_url: http://localhost:8000/v1
-  api_key_env: LOCAL_API_KEY
+  model: Qwen/Qwen3.6-35B-A3B-FP8
+  base_url: http://127.0.0.1:8004/v1
+  api_key_env: ""
   structured_output: false
+  extra_body:
+    chat_template_kwargs:
+      enable_thinking: false
 ```
 
-For a server without authentication:
+Only pass parameters supported by your model server. `extra_body` cannot override `model`, `messages`, `stream`, or `response_format`; changing its values requires a fresh workspace. Python callers may override individual top-level `extra_body` keys per request.
 
-```bash
-export LOCAL_API_KEY="unused"
-megarag doctor --config local.yaml
-megarag ingest demo/project.pdf --config local.yaml --workspace demo/local-index
-megarag query "Who manages Project Atlas?" --config local.yaml --workspace demo/local-index
-```
-
-Save the YAML above as `local.yaml` first. With `structured_output: false`, keyword extraction relies on prompt-guided JSON. Test the two-page example before a large ingestion: OpenAI-compatible endpoints differ in image handling and output-format support. Model-server deployment and specific replacement models are not validated by the offline test suite.
+The tests check request construction through the OpenAI SDK with a local HTTP substitute. They do not validate hosted model availability, server deployment, or answer quality. See the provider documentation for [OpenRouter](https://openrouter.ai/docs/quickstart), [SGLang](https://docs.sglang.io/docs/basic_usage/openai_api_completions), and [vLLM](https://docs.vllm.ai/en/latest/serving/openai_compatible_server/).
 
 ## Embedding model
 

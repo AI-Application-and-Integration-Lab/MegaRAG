@@ -10,12 +10,11 @@ if [[ -f "${SCRIPT_DIR}/../../env.sh" ]]; then
   source "${SCRIPT_DIR}/../../env.sh"
 fi
 
-# Sanity checks (fail fast with helpful messages)
-: "${OPENAI_API_KEY:?Set OPENAI_API_KEY in env.sh}"
+MEGARAG_CONFIG="${MEGARAG_CONFIG:-./conf/addon_params.yaml}"
 
-# Quering
+# Query
 python3 ../utils/query_mmkg.py \
-    --config-file ./conf/addon_params.yaml \
+    --config-file "${MEGARAG_CONFIG}" \
     --working-dir ./exp/World_History_Volume_1 \
     --input-queries './data/queries.txt' \
     --output-file './exp/World_History_Volume_1/results/results.json' \

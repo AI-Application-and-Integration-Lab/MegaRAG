@@ -1,27 +1,50 @@
 """Shared initialization for the CLI and research recipes."""
 
 import asyncio
-import os
 
 from .config import Config, config_fingerprint, prepare_workspace
+
+
+def create_llm_func(config, token_tracker=None):
+    """Bind one OpenAI-compatible configuration without loading embeddings."""
+    from copy import deepcopy
+    from lightrag.types import GPTKeywordExtractionFormat
+    from .llms.openai import openai_complete_if_cache
+
+    config.validate()
+    llm = deepcopy(config.llm)
+    api_key = llm.resolve_api_key()
+
+    async def complete(prompt, input_images=None, system_prompt=None,
+                       history_messages=None, keyword_extraction=False, **kwargs):
+        if keyword_extraction and llm.structured_output:
+            kwargs["response_format"] = GPTKeywordExtractionFormat
+        extra_body = {**deepcopy(llm.extra_body), **kwargs.pop("extra_body", {})}
+        if extra_body:
+            kwargs["extra_body"] = extra_body
+        kwargs.setdefault("timeout", llm.timeout)
+        return await openai_complete_if_cache(
+            llm.model, prompt, input_images=input_images,
+            system_prompt=system_prompt, history_messages=history_messages,
+            base_url=llm.base_url, api_key=api_key,
+            token_tracker=token_tracker, **kwargs,
+        )
+
+    return complete
 
 
 async def initialize_rag(working_dir, addon_params=None, *, config=None, ingest=False):
     config = config or Config(addon_params=addon_params or Config().addon_params)
     config.validate()
-    api_key = os.environ.get(config.llm.api_key_env)
-    if not api_key:
-        raise ValueError(f"Set {config.llm.api_key_env} before running inference.")
+    config.llm.resolve_api_key()
     revision = prepare_workspace(working_dir, config, ingest=ingest)
 
     import torch
     from transformers import AutoModel
     from lightrag.utils import TokenTracker, wrap_embedding_func_with_attrs
-    from lightrag.types import GPTKeywordExtractionFormat
     from lightrag.kg.shared_storage import initialize_pipeline_status
     from . import MegaRAG
     from .llms.hf import hf_gme_embed
-    from .llms.openai import openai_complete_if_cache
 
     device = config.embedding.device
     if device == "auto":
@@ -62,28 +85,7 @@ async def initialize_rag(working_dir, addon_params=None, *, config=None, ingest=
 
     token_tracker = TokenTracker()
 
-    async def llm_func(
-        prompt,
-        input_images=None,
-        system_prompt=None,
-        history_messages=None,
-        keyword_extraction=False,
-        **kwargs,
-    ):
-        if keyword_extraction and config.llm.structured_output:
-            kwargs["response_format"] = GPTKeywordExtractionFormat
-        return await openai_complete_if_cache(
-            config.llm.model,
-            prompt,
-            system_prompt=system_prompt,
-            history_messages=history_messages,
-            input_images=input_images,
-            base_url=config.llm.base_url,
-            api_key=api_key,
-            token_tracker=token_tracker,
-            timeout=config.llm.timeout,
-            **kwargs,
-        )
+    llm_func = create_llm_func(config, token_tracker)
 
     addon = {
         **config.addon_params,

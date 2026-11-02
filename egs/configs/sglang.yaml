@@ -1,0 +1,12 @@
+# Match model to your running server's vision-capable model ID.
+# This example follows the KG4VD SGLang preset.
+llm:
+  model: Qwen/Qwen3.6-35B-A3B-FP8
+  base_url: http://127.0.0.1:8004/v1
+  api_key_env: ""
+  structured_output: false
+  max_async: 2
+  timeout: 300
+  extra_body:
+    chat_template_kwargs:
+      enable_thinking: false
