@@ -18,7 +18,7 @@ The test document identifies Lina Torres as Project Vega's manager, with a USD 4
 
 ## Document tutorial checks
 
-The five [document examples](examples.md) were also run through the CLI with `egs/configs/openrouter.yaml`, GME on an RTX 5090, and separate fresh workspaces. Every PDF contains two pages. The image-only presentation was first parsed with MinerU 4.1.3 in `standard` / `ocr` mode; the other four PDFs were ingested directly.
+The five [document examples](examples.md) were also run through the CLI with `egs/configs/openrouter.yaml`, GME on an RTX 5090, and separate fresh workspaces. This baseline run used the default entity types, before the per-document configurations were added. Every PDF contains two pages. The image-only presentation was first parsed with MinerU 4.1.3 in `standard` / `ocr` mode; the other four PDFs were ingested directly.
 
 | Example | Build and saved-index query | Reference facts checked |
 | --- | --- | --- |
@@ -31,6 +31,8 @@ The five [document examples](examples.md) were also run through the CLI with `eg
 The ten published questions returned their reference facts after refining one chart question. Initially, the 2014 app-count answer mixed the chart's 1.3 million with the surrounding text's 2015 figure of 1.6 million. Naming the chart and year alone still left a conflict; explicitly asking to use the chart image when text summaries disagree resolved it in this run. The question file includes that wording.
 
 These checks do not establish full answer faithfulness. For example, the low-current charging answer included the two expected facts but also added an unsupported claim about incomplete charging. The [reference answers](../egs/document_examples/ANSWERS.md) contain only facts supported by the excerpts. Model responses still need to be checked against the source pages.
+
+The later `egs/document_examples/configs/*.yaml` presets define separate entity vocabularies for all five document types. Configuration loading, tutorial command consistency, and workspace invalidation after changing entity types were checked locally. Live generation has not been rerun with these presets; the answer results above apply to the shared baseline configuration.
 
 ## Tested environment
 

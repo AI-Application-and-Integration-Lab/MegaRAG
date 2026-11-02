@@ -41,7 +41,7 @@ The first ingestion downloads the embedding model and makes API calls. To use an
 
 ### Try different documents
 
-Follow the [document examples](docs/examples.md) with five included **two-page PDFs**: a research paper, financial report, user manual, product brochure, and image-only presentation. Each example shows how to build a graph, ask a question, and check the answer. Swap in your own PDF to use the same workflow.
+Follow the [document examples](docs/examples.md) with five included **two-page PDFs**: a research paper, financial report, user manual, product brochure, and image-only presentation. Each has matching entity types, a ready-to-use configuration, and commands to build a graph, ask a question, and check the answer. Swap in your own PDF to use the same workflow.
 
 <a id="use-your-own-pdf"></a>
 

@@ -1,0 +1,16 @@
+# Products, services, and visible attributes such as color.
+# To change API providers, edit llm and keep addon_params.entity_types.
+llm:
+  model: gpt-4o-mini
+  base_url: https://api.openai.com/v1
+  api_key_env: OPENAI_API_KEY
+  structured_output: true
+addon_params:
+  language: English
+  entity_types:
+    - brand
+    - product
+    - product_feature
+    - connected_service
+    - technology
+    - visual_attribute

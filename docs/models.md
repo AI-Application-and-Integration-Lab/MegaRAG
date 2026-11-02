@@ -92,13 +92,14 @@ For reproducible runs, replace `revision: main` with a model commit ID before cr
 ```yaml
 addon_params:
   language: English
+  entity_types: [organization, person, project, date]
   chunk_top_k: 6
   embed_parallel_limit: 1
   entity_extract_max_gleaning: 0
   entity_refine_max_times: 1
 ```
 
-`language` controls extraction prompt language. Add `entity_types` as a list to specialize the graph, for example `[organization, person, project, date]`.
+`language` controls extraction prompt language. `entity_types` guides the kinds of entities extracted during graph construction and refinement. Choose types that fit the document: see the [five document-specific configurations](examples.md) for papers, financial reports, manuals, brochures, and market-report slides. Changing this list requires a fresh workspace and another ingestion; query with the same configuration used to build it.
 
 ## Existing workspaces
 
