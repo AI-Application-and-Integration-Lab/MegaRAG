@@ -876,6 +876,7 @@ class MegaRAG(LightRAG):
                                                 }
                                             }
                                         )
+                                        raise
 
                             except Exception as e:
                                 # Log error and update pipeline status
@@ -920,6 +921,7 @@ class MegaRAG(LightRAG):
                                         }
                                     }
                                 )
+                                raise
 
                         # Create processing tasks for all documents
                         doc_tasks = []

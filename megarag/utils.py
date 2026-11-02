@@ -229,6 +229,7 @@ def plot_waterfall_from_jsonl(jsonl_path: str, trace_id: Optional[str] = None,
 def query_cache_hash(query, param, global_config, system_prompt=None):
     """Include retrieval settings, model identity and index revision in query caches."""
     return compute_args_hash(json.dumps({
+        "schema": 2,  # Invalidate answers from the earlier query/response handling.
         "query": query,
         "parameters": vars(param),
         "system_prompt": system_prompt,

@@ -112,105 +112,108 @@ async def async_main():
     addon_params = config.addon_params
     rag, token_tracker = await initialize_rag(working_dir, config=config)
 
-    param = QueryParam(
-        mode="mix_two_step",
-        chunk_top_k=addon_params.get("chunk_top_k", 6),
-        enable_rerank=False,
-    )
+    try:
+        param = QueryParam(
+            mode="mix_two_step",
+            chunk_top_k=addon_params.get("chunk_top_k", 6),
+            enable_rerank=False,
+        )
 
-    questions = extract_queries(Path(args.input_queries))
-    if not questions:
-        raise SystemExit(f"No questions found in {args.input_queries}")
+        questions = extract_queries(Path(args.input_queries))
+        if not questions:
+            raise SystemExit(f"No questions found in {args.input_queries}")
 
-    sem = asyncio.Semaphore(max(1, args.concurrency))
+        sem = asyncio.Semaphore(max(1, args.concurrency))
 
-    async def worker(idx: int, q: str):
-        started_at = _now_iso()
-        async with sem:
-            res, dt, err = await run_query_with_retries(
-                rag, q, param, max_retries=args.max_retries, retry_delay=args.retry_delay
-            )
-        finished_at = _now_iso()
-        record: Dict[str, Any] = {
-            "index": idx,
-            "question": q,
-            "answer": res,          # may be complex; handled by default=str on dump
-            "latency_seconds": dt,
-            "error": str(err) if err else None,
-            "started_at": started_at,
-            "finished_at": finished_at,
-        }
-        return idx, record
+        async def worker(idx: int, q: str):
+            started_at = _now_iso()
+            async with sem:
+                res, dt, err = await run_query_with_retries(
+                    rag, q, param, max_retries=args.max_retries, retry_delay=args.retry_delay
+                )
+            finished_at = _now_iso()
+            record: Dict[str, Any] = {
+                "index": idx,
+                "question": q,
+                "answer": res,          # may be complex; handled by default=str on dump
+                "latency_seconds": dt,
+                "error": str(err) if err else None,
+                "started_at": started_at,
+                "finished_at": finished_at,
+            }
+            return idx, record
 
-    tasks = [asyncio.create_task(worker(i, q)) for i, q in enumerate(questions)]
+        tasks = [asyncio.create_task(worker(i, q)) for i, q in enumerate(questions)]
 
-    # --- progress bar setup ---
-    use_bar = (
-        args.progress
-        and (tqdmauto is not None)
-        and (hasattr(sys.stderr, "isatty") and sys.stderr.isatty())
-    )
-    pbar = tqdmauto.tqdm(total=len(tasks), desc="Processing queries", unit="q") if use_bar else None
+        # --- progress bar setup ---
+        use_bar = (
+            args.progress
+            and (tqdmauto is not None)
+            and (hasattr(sys.stderr, "isatty") and sys.stderr.isatty())
+        )
+        pbar = tqdmauto.tqdm(total=len(tasks), desc="Processing queries", unit="q") if use_bar else None
 
-    # Collect results as tasks finish so we can update the bar
-    finished: list[Any] = [None] * len(tasks)
-    err_count = 0
+        # Collect results as tasks finish so we can update the bar
+        finished: list[Any] = [None] * len(tasks)
+        err_count = 0
 
-    for fut in asyncio.as_completed(tasks):
-        idx, rec = await fut
-        finished[idx] = rec
-        if pbar:
-            if rec["error"]:
-                err_count += 1
-                pbar.set_postfix_str(f"errors={err_count}")
-            pbar.update(1)
-
-        # Optional streaming output without breaking the bar
-        if args.print_as_complete:
-            line = (
-                f"[{idx}] ERROR for question: {rec['question']}\n  {rec['error']}\n"
-                if rec["error"]
-                else f"[{idx}] ({rec['latency_seconds']:.2f}s) {rec['answer']}\n"
-            )
+        for fut in asyncio.as_completed(tasks):
+            idx, rec = await fut
+            finished[idx] = rec
             if pbar:
-                tqdmauto.tqdm.write(line)
-            else:
-                print(line)
+                if rec["error"]:
+                    err_count += 1
+                    pbar.set_postfix_str(f"errors={err_count}")
+                pbar.update(1)
 
-    if pbar:
-        pbar.close()
+            # Optional streaming output without breaking the bar
+            if args.print_as_complete:
+                line = (
+                    f"[{idx}] ERROR for question: {rec['question']}\n  {rec['error']}\n"
+                    if rec["error"]
+                    else f"[{idx}] ({rec['latency_seconds']:.2f}s) {rec['answer']}\n"
+                )
+                if pbar:
+                    tqdmauto.tqdm.write(line)
+                else:
+                    print(line)
 
-    # If not streaming earlier, print in input order now
-    if not args.print_as_complete:
-        for idx, rec in enumerate(finished):
-            if rec["error"]:
-                print(f"[{idx}] ERROR for question: {rec['question']}\n  {rec['error']}\n")
-            else:
-                print(f"[{idx}] ({rec['latency_seconds']:.2f}s) {rec['answer']}\n")
+        if pbar:
+            pbar.close()
 
-    out_path = Path(args.output_file)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+        # If not streaming earlier, print in input order now
+        if not args.print_as_complete:
+            for idx, rec in enumerate(finished):
+                if rec["error"]:
+                    print(f"[{idx}] ERROR for question: {rec['question']}\n  {rec['error']}\n")
+                else:
+                    print(f"[{idx}] ({rec['latency_seconds']:.2f}s) {rec['answer']}\n")
 
-    if args.output_format == "jsonl":
-        mode = "a" if args.append else "w"
-        with out_path.open(mode, encoding="utf-8") as f:
-            for rec in finished:
-                f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
-        print(f"Saved {len(finished)} records to {out_path} (JSONL).")
-    else:
-        payload = {
-            "results": finished,
-            "metadata": {
-                "final_token_usage": str(token_tracker),
-                "query_file": str(args.input_queries),
-                "generated_at": _now_iso(),
-            },
-        }
-        with out_path.open("w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2, default=str)
-        print(f"Saved results + metadata to {out_path} (JSON array).")
+        out_path = Path(args.output_file)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    print(f"Final Token Usage: {token_tracker}.")
+        if args.output_format == "jsonl":
+            mode = "a" if args.append else "w"
+            with out_path.open(mode, encoding="utf-8") as f:
+                for rec in finished:
+                    f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
+            print(f"Saved {len(finished)} records to {out_path} (JSONL).")
+        else:
+            payload = {
+                "results": finished,
+                "metadata": {
+                    "final_token_usage": str(token_tracker),
+                    "query_file": str(args.input_queries),
+                    "generated_at": _now_iso(),
+                },
+            }
+            with out_path.open("w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2, default=str)
+            print(f"Saved results + metadata to {out_path} (JSON array).")
+
+        print(f"Final Token Usage: {token_tracker}.")
+    finally:
+        await rag.finalize_storages()
 
 def main():
     try:

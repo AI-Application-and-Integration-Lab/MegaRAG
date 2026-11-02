@@ -19,6 +19,7 @@ This checks installed modules and the configured API-key environment variable. I
 | Endpoint rejects structured output | If it supports prompt-guided JSON, set `llm.structured_output: false` and use a new workspace. |
 | Workspace configuration changed | Use a fresh `--workspace` with the updated config and ingest again. |
 | Workspace has no model manifest | Rebuild the legacy index into a new directory. Do not delete the original as a troubleshooting step. |
+| Workspace ingestion is incomplete | Resolve the parser/model/API error and rerun `megarag ingest` before querying. A manifest alone does not indicate a completed index. |
 | No selectable text found | Use the [MinerU workflow](mineru.md) for scanned PDFs. |
 | Image file not found | Keep parsed assets in place; resolve paths in prepared page JSON from the current directory. |
 | No questions found | Use one question per line in `.txt`, or `{"question": "..."}` objects in `.jsonl`. |

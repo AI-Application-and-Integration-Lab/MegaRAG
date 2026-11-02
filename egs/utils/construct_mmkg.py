@@ -1,4 +1,3 @@
-import time
 import asyncio
 import argparse
 from pathlib import Path
@@ -7,7 +6,7 @@ from megarag import MegaRAG
 from megarag.config import load_config
 from megarag.runtime import initialize_rag
 
-def insert_context(
+async def insert_context(
     rag: MegaRAG,
     file_path: Path,
     *,
@@ -20,10 +19,13 @@ def insert_context(
 
     for attempt in range(1, max_retries + 1):
         try:
-            rag.insert(
+            await rag.ainsert(
                 input=unique_contexts,
                 file_paths=str(file_path),
             )
+            from lightrag.base import DocStatus
+            if await rag.doc_status.get_docs_by_status(DocStatus.FAILED):
+                raise RuntimeError("Document processing failed; inspect the preceding error.")
             break
         except Exception as exc:  # noqa: BLE001
             if attempt == max_retries:
@@ -33,7 +35,7 @@ def insert_context(
             print(
                 f"Insertion failed, retrying ({attempt}/{max_retries}), error: {exc}",
             )
-            time.sleep(retry_delay)
+            await asyncio.sleep(retry_delay)
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -74,8 +76,7 @@ def parse_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
-def main() -> None:
-    args = parse_args()
+async def run(args) -> None:
 
     working_dir = Path(args.working_dir)
     working_dir.mkdir(parents=True, exist_ok=True)
@@ -84,16 +85,23 @@ def main() -> None:
     config = load_config(Path(args.config_file))
 
     # Initialise RAG with the loaded parameters
-    rag, token_tracker = asyncio.run(initialize_rag(working_dir, config=config, ingest=True))
+    rag, token_tracker = await initialize_rag(working_dir, config=config, ingest=True)
 
-    input_dir = Path(args.input_dir)
-    insert_context(
-        rag,
-        input_dir,
-        max_retries=args.max_retries,
-        retry_delay=args.retry_delay,
-    )
-    print(f'Final Token Usage: {token_tracker}.')
+    try:
+        await insert_context(
+            rag, Path(args.input_dir),
+            max_retries=args.max_retries, retry_delay=args.retry_delay,
+        )
+        print(f'Final Token Usage: {token_tracker}.')
+    finally:
+        await rag.finalize_storages()
+
+
+def main() -> None:
+    args = parse_args()
+    if args.max_retries < 1 or args.retry_delay < 0:
+        raise ValueError("max-retries must be positive and retry-delay nonnegative")
+    asyncio.run(run(args))
 
 if __name__ == "__main__":
     main()

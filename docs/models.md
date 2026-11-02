@@ -110,4 +110,6 @@ megarag ingest demo/project.pdf --config updated.yaml --workspace demo/updated-i
 
 Query caches include the model fingerprint, retrieval settings, and an ingestion revision. Ingestion rotates that revision so earlier answers are not reused after adding documents. Use one writer per workspace, and query after ingestion finishes.
 
+Queries reject workspaces with missing or unfinished document statuses before loading models. Resolve the ingestion error and rerun ingestion with the same configuration.
+
 Legacy indexes without a manifest are preserved but not automatically adopted. Rebuild into a new directory. Existing recipe YAML files with top-level addon parameters are still accepted by the research scripts.

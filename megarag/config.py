@@ -3,6 +3,7 @@
 from dataclasses import asdict, dataclass, field
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import uuid
@@ -81,6 +82,7 @@ class Config:
                 isinstance(value, bool)
                 or not isinstance(value, (int, float))
                 or value <= 0
+                or not math.isfinite(value)
             ):
                 raise ValueError(f"{name} must be positive")
             if name != "llm.timeout" and not isinstance(value, int):
@@ -111,6 +113,8 @@ class Config:
             json.dumps(self.llm.extra_body, allow_nan=False)
         except (TypeError, ValueError) as exc:
             raise ValueError("llm.extra_body must contain JSON-compatible values") from exc
+        if not all(isinstance(key, str) for key in self.addon_params):
+            raise ValueError("addon_params keys must be strings")
         if any(key.startswith("_") for key in self.addon_params):
             raise ValueError("addon_params keys starting with '_' are reserved")
         return self
@@ -119,9 +123,13 @@ class Config:
 def load_config(path=None):
     if path is None:
         return Config().validate()
-    data = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+    data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    if data is None:
+        data = {}
     if not isinstance(data, dict):
         raise ValueError("Configuration must be a YAML mapping")
+    if not all(isinstance(key, str) for key in data):
+        raise ValueError("Configuration keys must be strings")
     # Existing recipe files contain addon parameters at the top level.
     if not any(key in data for key in ("llm", "embedding", "addon_params")):
         data = {"addon_params": data}
@@ -170,7 +178,8 @@ def prepare_workspace(directory, config, *, ingest=False):
     if manifest_path.exists():
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         if (
-            manifest.get("schema") != 1
+            not isinstance(manifest, dict)
+            or manifest.get("schema") != 1
             or manifest.get("config_fingerprint") != fingerprint
         ):
             raise ValueError(
@@ -200,4 +209,16 @@ def prepare_workspace(directory, config, *, ingest=False):
         temporary = directory / f".manifest-{uuid.uuid4().hex}.tmp"
         temporary.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         temporary.replace(manifest_path)
+    else:
+        # A manifest is created before parsing/model loading; it does not prove
+        # that ingestion finished. Check the persisted document statuses first.
+        status_path = directory / "kv_store_doc_status.json"
+        statuses = json.loads(status_path.read_text(encoding="utf-8")) if status_path.is_file() else {}
+        if not isinstance(statuses, dict) or not statuses or any(
+            not isinstance(doc, dict) or doc.get("status") != "processed"
+            for doc in statuses.values()
+        ):
+            raise ValueError("Workspace ingestion is incomplete. Run 'megarag ingest' successfully before querying.")
+    if not isinstance(manifest.get("cache_revision"), str):
+        raise ValueError("Workspace manifest has no valid cache revision. Rerun ingest.")
     return manifest["cache_revision"]

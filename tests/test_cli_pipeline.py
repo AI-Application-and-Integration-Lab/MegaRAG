@@ -5,12 +5,16 @@ import sys
 from types import ModuleType, SimpleNamespace
 
 import numpy as np
+import pytest
 
 from megarag.cli import main
 from megarag.inputs import create_demo
 
 
-def test_ingest_and_query_pipeline(tmp_path, monkeypatch):
+@pytest.mark.parametrize("extraction", ["entities", "empty", "refinement_failure"])
+def test_ingest_and_query_pipeline(tmp_path, monkeypatch, extraction):
+    from lightrag.kg.shared_storage import finalize_share_data
+    finalize_share_data()
     import lightrag.lightrag as light_module
     from lightrag.utils import Tokenizer
     from megarag.llms import openai
@@ -60,6 +64,10 @@ def test_ingest_and_query_pipeline(tmp_path, monkeypatch):
                 }
             )
         if "Entity_types:" in prompt:
+            if extraction == "empty":
+                return "<|COMPLETE|>"
+            if extraction == "refinement_failure" and "Knowledge Graph Data" in prompt:
+                raise RuntimeError("Simulated refinement failure")
             return '("entity"<|>MAYA CHEN<|>person<|>Maya manages Project Atlas.)##("entity"<|>PROJECT ATLAS<|>project<|>A library project.)##("relationship"<|>MAYA CHEN<|>PROJECT ATLAS<|>Maya manages the project.<|>management<|>10)<|COMPLETE|>'
         return "Maya Chen manages Project Atlas."
 
@@ -74,7 +82,18 @@ def test_ingest_and_query_pipeline(tmp_path, monkeypatch):
         page.draw_rect(fitz.Rect(20, 20, 200, 200), color=(1, 0, 0), fill=(1, 0, 0))
         document.saveIncr()
     workspace = tmp_path / "index"
-    assert main(["ingest", str(pdf), "--workspace", str(workspace)]) == 0
+    result = main(["ingest", str(pdf), "--workspace", str(workspace)])
+    if extraction == "refinement_failure":
+        assert result == 1
+        statuses = json.loads((workspace / "kv_store_doc_status.json").read_text())
+        assert all(doc["status"] == "failed" for doc in statuses.values())
+        before = len(calls)
+        assert main(["query", "Who?", "--workspace", str(workspace)]) == 1
+        assert len(calls) == before
+        return
+    assert result == 0
+    if extraction == "empty":
+        assert any("Knowledge Graph Data" in prompt for _, prompt in calls)
     assert list(workspace.glob("graph_*.graphml"))
     assert list(workspace.glob("vdb_*.json"))
     chunks = json.loads((workspace / "kv_store_text_chunks.json").read_text())

@@ -54,6 +54,9 @@ def test_workspace_model_guard_and_cache_revision(tmp_path):
     workspace = tmp_path / "index"
     config = Config()
     revision = prepare_workspace(workspace, config, ingest=True)
+    with pytest.raises(ValueError, match="ingestion is incomplete"):
+        prepare_workspace(workspace, config)
+    (workspace / "kv_store_doc_status.json").write_text(' {"doc": {"status": "processed"}}')
     assert prepare_workspace(workspace, config) == revision
     assert prepare_workspace(workspace, config, ingest=True) != revision
     config.embedding.device = "cpu"
@@ -130,3 +133,20 @@ def test_image_only_pdf_directs_user_to_ocr(tmp_path):
         document.save(path)
     with pytest.raises(ValueError, match="MinerU"):
         prepare_pdf(path, tmp_path / "assets")
+
+
+@pytest.mark.parametrize("status", ["pending", "processing", "failed"])
+def test_unfinished_workspace_rejected(tmp_path, status):
+    prepare_workspace(tmp_path, Config(), ingest=True)
+    (tmp_path / "kv_store_doc_status.json").write_text(json.dumps({
+        "old": {"status": "processed"}, "new": {"status": status}}))
+    with pytest.raises(ValueError, match="ingestion is incomplete"):
+        prepare_workspace(tmp_path, Config())
+
+
+@pytest.mark.parametrize("content", ["[]", "false", "0", "addon_params: {1: value}", "llm: {timeout: .inf}", "llm: {}\n1: value"])
+def test_malformed_config_is_reported(tmp_path, content):
+    path = tmp_path / "bad.yaml"
+    path.write_text(content)
+    with pytest.raises(ValueError):
+        load_config(path)
