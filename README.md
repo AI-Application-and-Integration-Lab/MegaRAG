@@ -8,7 +8,9 @@ Multimodal graph-based retrieval for document question answering. MegaRAG combin
 
 Accepted to ACL 2026.
 
-## Install
+<a id="install"></a>
+
+## 📦 Install
 
 Use Python 3.10–3.12; Python 3.11 is recommended. The default setup uses a local GME embedding model and a vision-capable OpenAI API model. A CUDA GPU is recommended for embedding inference; CPU execution is supported but slower.
 
@@ -23,7 +25,9 @@ export OPENAI_API_KEY="your-api-key"
 
 LightRAG is installed automatically. On Windows, activate the environment with `.venv\Scripts\Activate.ps1` and set the key with `$env:OPENAI_API_KEY="your-api-key"`.
 
-## Quickstart
+<a id="quickstart"></a>
+
+## 🚀 Quickstart
 
 Create a two-page sample PDF, build its graph, and ask a question:
 
@@ -37,7 +41,9 @@ megarag query "Who manages Project Atlas?" --config megarag.yaml --workspace dem
 
 The sample identifies **Maya Chen** as the project manager. Answer wording depends on the selected model. The first ingestion downloads the embedding model and makes API calls; `demo` and `doctor` do not call an API.
 
-## Use your own PDF
+<a id="use-your-own-pdf"></a>
+
+## 📄 Use your own PDF
 
 ```bash
 megarag ingest ./report.pdf --config megarag.yaml --workspace ./report-index
@@ -63,7 +69,9 @@ megarag query --questions questions.txt --output answers.jsonl --config megarag.
 
 Each completed answer is saved immediately. JSONL input with `{"question": "..."}` is also supported. Output files are not overwritten.
 
-## Configure models
+<a id="configure-models"></a>
+
+## ⚙️ Configure models
 
 Edit `megarag.yaml` to set the language model, API endpoint, embedding device, or batch size. Pass the same configuration to ingestion and querying.
 
@@ -107,6 +115,8 @@ Tests use model and API substitutes; they do not download model weights or incur
 
 MegaRAG uses a [custom license](LICENSE). For academic or commercial use, contact the authors as described in the license.
 
-## Acknowledgments
+<a id="acknowledgments"></a>
+
+## 🙏 Acknowledgments
 
 Built on [LightRAG](https://github.com/HKUDS/LightRAG), with document parsing support through [MinerU](https://github.com/opendatalab/MinerU).
