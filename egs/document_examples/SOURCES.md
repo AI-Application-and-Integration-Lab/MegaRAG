@@ -1,6 +1,6 @@
 # Example document sources
 
-These five two-page excerpts were selected from the MMLongBench-Doc 2k subset used in KG4VD. They preserve the original page content; only page selection, PDF compression, and the PDF title metadata were changed. No full dataset download is required.
+These five two-page excerpts are included in MegaRAG and were selected from the MMLongBench-Doc 2k subset. They preserve the original page content; only page selection, PDF compression, and the PDF title metadata were changed. No full dataset download is required.
 
 | Excerpt | Original document / creator | Original PDF pages (1-based) |
 | --- | --- | --- |

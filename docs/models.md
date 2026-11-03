@@ -41,7 +41,7 @@ megarag query "Who manages Project Atlas?" --config egs/configs/openrouter.yaml 
 
 Skip `megarag demo` if the sample already exists. Use the same configuration for ingestion and querying; select a new workspace for each model configuration.
 
-For SGLang or vLLM, start your model server separately, then edit `model` and `base_url` to match it. The SGLang preset follows [KG4VD's Qwen configuration](https://github.com/AI-Application-and-Integration-Lab/KG4VD/blob/aba29b2e6f095b70c82542d4735a3937944e4f3e/src/kg4vd/config/presets/llm.sglang.qwen36.yaml); the vLLM preset uses a placeholder served model name. These files configure a client; they do not launch a server.
+For SGLang or vLLM, start your model server separately, then edit `model` and `base_url` to match it. Both presets are included in `egs/configs/`. The SGLang example uses `Qwen/Qwen3.6-35B-A3B-FP8`; the vLLM example uses a placeholder served model name. These files configure a client; they do not launch a server.
 
 ```bash
 megarag ingest demo/project.pdf --config egs/configs/sglang.yaml --workspace demo/sglang-index
@@ -52,7 +52,7 @@ The endpoint must support Chat Completions **and image inputs**, including multi
 
 Set `api_key_env: ""` only for a server without authentication. MegaRAG sends an SDK placeholder key (`EMPTY`) without reading `OPENAI_API_KEY`. For an authenticated server, set `api_key_env: LOCAL_API_KEY` and export that variable.
 
-Provider-specific request parameters go in `extra_body`, following the OpenAI-compatible approach used by [KG4VD](https://github.com/AI-Application-and-Integration-Lab/KG4VD). For compatible Qwen chat templates:
+Provider-specific request parameters go in `extra_body`. The included SGLang preset disables thinking for compatible Qwen chat templates:
 
 ```yaml
 llm:
