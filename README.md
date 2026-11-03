@@ -25,6 +25,16 @@ export OPENAI_API_KEY="your-api-key"
 
 LightRAG is installed automatically. On Windows, activate the environment with `.venv\Scripts\Activate.ps1` and set the key with `$env:OPENAI_API_KEY="your-api-key"`.
 
+Install MinerU in a separate environment for PDF parsing:
+
+```bash
+python3.11 -m venv .venv-mineru
+.venv-mineru/bin/python -m pip install -r requirements_mineru.txt 'mineru[torch]==4.1.3'
+export MINERU_PYTHON="$PWD/.venv-mineru/bin/python"
+```
+
+See [MinerU setup](docs/mineru.md#install-separately) for GPU requirements and Windows commands.
+
 <a id="quickstart"></a>
 
 ## 🚀 Quickstart
@@ -37,7 +47,7 @@ megarag ingest ./report.pdf --config megarag.yaml --workspace ./report-index
 megarag query "What are the main findings?" --config megarag.yaml --workspace ./report-index
 ```
 
-The first ingestion downloads the embedding model and makes API calls. To use another LLM provider, see [model configuration](docs/models.md) before indexing.
+Every PDF goes through **MinerU → graph construction → indexing** automatically. The first ingestion downloads parser and embedding models and makes LLM API calls. To use another LLM provider, see [model configuration](docs/models.md) before indexing.
 
 ### Try different documents
 
@@ -49,7 +59,7 @@ Follow the [document examples](docs/examples.md) with five included **two-page P
 
 Add `--max-pages 3` to try a few pages first. Use a fresh workspace when moving from a page-limited trial to the full document, or when replacing an existing PDF.
 
-The default PDF reader extracts selectable text and renders page images. For scanned PDFs, OCR, or layout-aware table and figure extraction, use the [MinerU workflow](docs/mineru.md).
+MinerU handles text PDFs, scanned pages, tables, and figures using the same command. Parsed assets stay inside the workspace and are reused on retries. See the [MinerU workflow](docs/mineru.md) for advanced parsing options. Rebuild indexes created before this automatic MinerU workflow in a new workspace.
 
 ## Run a question file
 

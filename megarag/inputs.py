@@ -1,9 +1,14 @@
-"""Input preparation for plain questions and text-based PDFs."""
+"""Question inputs and PDF preprocessing through the isolated MinerU runtime."""
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
+import shutil
+import subprocess
+import tempfile
+import uuid
 
 
 def extract_queries(path):
@@ -36,40 +41,90 @@ def extract_queries(path):
     return questions
 
 
-def prepare_pdf(pdf_path, output_dir, *, max_pages=None):
-    """Extract selectable text and render page images; no OCR or layout analysis."""
-    import fitz
+def resolve_mineru_python():
+    """Keep the venv executable path intact: resolving symlinks loses its venv."""
+    configured = os.environ.get("MINERU_PYTHON")
+    if configured:
+        candidate = os.path.expanduser(configured)
+        executable = shutil.which(candidate)
+    else:
+        relative = Path("Scripts/python.exe") if os.name == "nt" else Path("bin/python")
+        candidate = str(Path.cwd() / ".venv-mineru" / relative)
+        executable = shutil.which(candidate)
+    if not executable:
+        raise ValueError(
+            f"MinerU Python not found: {candidate}. Install the separate MinerU environment "
+            "(docs/mineru.md) and set MINERU_PYTHON to its Python executable."
+        )
+    return str(Path(executable).absolute())
 
+
+def read_page_manifest(manifest):
+    """Validate parsed text and images before loading the embedding model."""
+    pages = json.loads(Path(manifest).read_text(encoding="utf-8"))
+    if not isinstance(pages, dict) or not pages:
+        raise ValueError("Page JSON must be a nonempty object keyed by zero-based page numbers")
+    for index in range(len(pages)):
+        page = pages.get(str(index))
+        if not isinstance(page, dict) or not isinstance(page.get("text"), str):
+            raise ValueError(f"Invalid page {index}: expected text and page_image")
+        figures = page.get("figure_images", [])
+        if not isinstance(figures, list):
+            raise ValueError(f"Page {index}: figure_images must be a list")
+        for image in [page.get("page_image", ""), *figures]:
+            if not isinstance(image, str) or not image or not Path(image).is_file():
+                raise ValueError(
+                    f"Page {index}: image file not found: {image!r}. "
+                    "Keep the parsed assets available and resolve relative paths before ingesting."
+                )
+        page["page_image"] = str(Path(page["page_image"]).resolve())
+        page["figure_images"] = [str(Path(image).resolve()) for image in figures]
+    return pages
+
+
+def prepare_pdf(pdf_path, output_dir, *, max_pages=None):
+    """Run MinerU Standard/auto before indexing any PDF, including scanned PDFs."""
     pdf_path = Path(pdf_path).resolve()
+    if not pdf_path.is_file() or pdf_path.suffix.lower() != ".pdf":
+        raise ValueError("Input must be an existing PDF")
     if max_pages is not None and max_pages < 1:
         raise ValueError("max_pages must be positive")
-    digest = hashlib.sha256(pdf_path.read_bytes()).hexdigest()[:20]
-    output_dir = Path(output_dir).resolve() / digest
-    pages = {}
-    with fitz.open(pdf_path) as document:
-        if document.needs_pass:
-            raise ValueError("PDF is password protected. Provide an unlocked copy.")
-        count = min(len(document), max_pages) if max_pages else len(document)
-        if not count:
-            raise ValueError("PDF has no pages")
-        output_dir.mkdir(parents=True, exist_ok=True)
-        for index in range(count):
-            page = document[index]
-            image_path = output_dir / f"page_{index + 1:04d}.png"
-            page.get_pixmap(dpi=150, alpha=False).save(str(image_path))
-            pages[str(index)] = {
-                "text": page.get_text().strip(),
-                "page_image": str(image_path),
-                "figure_images": [],
-            }
-    if not any(page["text"] for page in pages.values()):
-        raise ValueError(
-            "No selectable text found. Use the MinerU workflow for scanned PDFs (docs/mineru.md)."
-        )
-    manifest = output_dir / f"pages_{count}.json"
-    manifest.write_text(
-        json.dumps(pages, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    adapter = Path(__file__).with_name("mineru_adapter.py")
+    digest = hashlib.sha256(adapter.read_bytes())
+    digest.update(json.dumps({"tier": "standard", "ocr_mode": "auto", "max_pages": max_pages}).encode())
+    with pdf_path.open("rb") as source:
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(block)
+    cache_dir = Path(output_dir).resolve() / digest.hexdigest()
+    manifest = cache_dir / "pages_content.json"
+    if manifest.is_file():
+        try:
+            read_page_manifest(manifest)
+        except (ValueError, OSError):
+            pass  # Missing/damaged assets require a fresh parse, never a silent fallback.
+        else:
+            print(f"Reusing MinerU output: {manifest}", flush=True)
+            return manifest
+    python = resolve_mineru_python()
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    # Preserve failed attempts and all assets referenced by an existing index.
+    # Only publish the stable manifest after a successful, validated parse.
+    attempt = Path(tempfile.mkdtemp(prefix="parse-", dir=cache_dir))
+    command = [python, str(adapter), str(pdf_path), "--output", str(attempt),
+               "--tier", "standard", "--ocr-mode", "auto"]
+    if max_pages is not None:
+        command += ["--max-pages", str(max_pages)]
+    try:
+        subprocess.run(command, check=True)
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(
+            f"MinerU parsing failed (exit {exc.returncode}); graph construction was not started. "
+            "Check the parser error above and docs/mineru.md, then rerun ingest."
+        ) from exc
+    pages = read_page_manifest(attempt / "pages_content.json")
+    temporary = cache_dir / f".manifest-{uuid.uuid4().hex}.tmp"
+    temporary.write_text(json.dumps(pages, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(manifest)
     return manifest
 
 

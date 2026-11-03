@@ -111,7 +111,7 @@ def test_jsonl_reports_invalid_line(tmp_path, line):
         extract_queries(path)
 
 
-def test_demo_and_page_manifest(tmp_path):
+def test_demo_and_page_manifest(tmp_path, fake_mineru):
     pdf = create_demo(tmp_path / "demo")
     manifest = prepare_pdf(pdf, tmp_path / "assets", max_pages=1)
     pages = json.loads(manifest.read_text())
@@ -124,15 +124,16 @@ def test_demo_and_page_manifest(tmp_path):
         create_demo(pdf.parent)
 
 
-def test_image_only_pdf_directs_user_to_ocr(tmp_path):
+def test_image_only_pdf_also_runs_mineru(tmp_path, fake_mineru):
     import fitz
 
     path = tmp_path / "empty.pdf"
     with fitz.open() as document:
         document.new_page()
         document.save(path)
-    with pytest.raises(ValueError, match="MinerU"):
-        prepare_pdf(path, tmp_path / "assets")
+    manifest = prepare_pdf(path, tmp_path / "assets")
+    assert fake_mineru
+    assert list(json.loads(manifest.read_text())) == ["0"]
 
 
 @pytest.mark.parametrize("status", ["pending", "processing", "failed"])

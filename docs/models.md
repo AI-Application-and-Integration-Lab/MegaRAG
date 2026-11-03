@@ -103,7 +103,7 @@ addon_params:
 
 ## Existing workspaces
 
-Each CLI workspace records a configuration fingerprint and embedding metadata. Model, endpoint, prompt, or retrieval-setting changes require a fresh workspace. Device, embedding batch size, embedding concurrency, API key variable, timeout, and LLM concurrency can change without rebuilding.
+Each CLI workspace records a configuration fingerprint and embedding metadata. Model, endpoint, prompt, input-pipeline, or retrieval-setting changes require a fresh workspace. This includes upgrading from the earlier direct-PDF reader to automatic MinerU preprocessing. Device, embedding batch size, embedding concurrency, API key variable, timeout, and LLM concurrency can change without rebuilding.
 
 ```bash
 megarag ingest demo/project.pdf --config updated.yaml --workspace demo/updated-index

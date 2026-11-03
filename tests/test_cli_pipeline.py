@@ -12,7 +12,7 @@ from megarag.inputs import create_demo
 
 
 @pytest.mark.parametrize("extraction", ["entities", "empty", "refinement_failure"])
-def test_ingest_and_query_pipeline(tmp_path, monkeypatch, extraction):
+def test_ingest_and_query_pipeline(tmp_path, monkeypatch, extraction, fake_mineru):
     from lightrag.kg.shared_storage import finalize_share_data
     finalize_share_data()
     import lightrag.lightrag as light_module

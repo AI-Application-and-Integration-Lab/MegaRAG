@@ -154,6 +154,9 @@ def load_config(path=None):
 
 def config_fingerprint(config):
     data = asdict(config)
+    # Earlier CLI indexes used plain PDF text without MinerU layout/OCR assets.
+    # Rebuild instead of mixing those graphs with the new preprocessing pipeline.
+    data["input_pipeline"] = "mineru-4.1.3-standard-auto-v1"
     # Execution limits do not change the embedding space or model selection.
     for key in ("device", "batch_size"):
         data["embedding"].pop(key)

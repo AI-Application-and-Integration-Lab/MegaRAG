@@ -12,7 +12,7 @@ import sys
 import yaml
 
 from .config import Config, load_config, prepare_workspace
-from .inputs import create_demo, extract_queries, prepare_pdf
+from .inputs import create_demo, extract_queries, prepare_pdf, read_page_manifest, resolve_mineru_python
 
 
 def parser():
@@ -29,7 +29,7 @@ def parser():
     demo.add_argument("--output", type=Path, default=Path("demo"))
     for name, description in (
         ("doctor", "Check local dependencies and configuration; no API calls"),
-        ("ingest", "Build an index from a text PDF or prepared page JSON"),
+        ("ingest", "Parse a PDF with MinerU and build an index, or use prepared page JSON"),
         ("query", "Ask a question or run a question file"),
     ):
         command = commands.add_parser(name, help=description)
@@ -78,6 +78,11 @@ def doctor(config):
     print(f"{'OK' if has_key else 'MISSING'}  {auth_label}")
     if missing:
         print('Install the inference extras: pip install -e ".[local,pdf]"')
+    try:
+        print(f"OK  MinerU Python: {resolve_mineru_python()}")
+    except ValueError as exc:
+        print(f"MISSING  {exc}")
+        missing.append("MinerU Python")
     print(f"LLM: {config.llm.model}")
     print(
         f"Embedding: {config.embedding.model} ({config.embedding.dimension} dimensions)"
@@ -100,30 +105,11 @@ async def run(args, config):
         # Validate the workspace before writing any generated PDF assets.
         prepare_workspace(args.workspace, config, ingest=True)
         manifest = (
-            prepare_pdf(args.input, args.workspace / "assets", max_pages=args.max_pages)
+            prepare_pdf(args.input, args.workspace / "parsed", max_pages=args.max_pages)
             if suffix == ".pdf"
             else args.input.resolve()
         )
-        content = manifest.read_text(encoding="utf-8")
-        pages = json.loads(content)
-        if not isinstance(pages, dict) or not pages:
-            raise ValueError(
-                "Page JSON must be a nonempty object keyed by zero-based page numbers"
-            )
-        for index in range(len(pages)):
-            page = pages.get(str(index))
-            if not isinstance(page, dict) or not isinstance(page.get("text"), str):
-                raise ValueError(f"Invalid page {index}: expected text and page_image")
-            figures = page.get("figure_images", [])
-            if not isinstance(figures, list):
-                raise ValueError(f"Page {index}: figure_images must be a list")
-            for image in [page.get("page_image", ""), *figures]:
-                if not isinstance(image, str) or not image or not Path(image).is_file():
-                    raise ValueError(
-                        f"Page {index}: image file not found: {image!r}. Resolve relative paths before ingesting."
-                    )
-            page["page_image"] = str(Path(page["page_image"]).resolve())
-            page["figure_images"] = [str(Path(image).resolve()) for image in figures]
+        pages = read_page_manifest(manifest)
         content = json.dumps(pages, ensure_ascii=False)
         rag, tracker = await initialize_rag(args.workspace, config=config, ingest=True)
         try:

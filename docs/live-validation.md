@@ -1,8 +1,26 @@
 # Live integration validation
 
-Validated on November 2, 2026 (UTC), using synthetic documents, the included document excerpts, and real model inference. These checks cover integration and selected factual answers; they are not a retrieval-quality benchmark.
+The automatic MinerU workflow was validated on November 3, 2026 (Asia/Taipei). Earlier checks from November 2 are retained below. These runs cover integration and selected factual answers; they are not retrieval-quality benchmarks.
 
-## Results
+## Automatic MinerU and document-specific entity types
+
+All five [document examples](examples.md) were ingested directly as PDFs through the CLI. Each automatically ran MinerU 4.1.3 in `standard` / `auto` mode before graph construction, including the image-only slides. Each run used its document-specific entity types, with only the `llm` section replaced by the OpenRouter preset (`openai/gpt-4o-mini`). GME used the default batch size of 2 and LLM concurrency of 4.
+
+| Example | Pages | CLI ingestion time | Graph nodes / edges | Extracted figure/table assets |
+| --- | --- | --- | --- | --- |
+| Paper | 2 | 36.8 s | 21 / 15 | 0 |
+| Finance | 2 | 54.4 s | 32 / 21 | 2 |
+| Manual | 2 | 39.3 s | 24 / 19 | 1 |
+| Brochure | 2 | 37.4 s | 21 / 7 | 8 |
+| Slides | 2 | 31.4 s | 18 / 10 | 2 |
+
+These times include CLI startup, MinerU parsing, model loading, graph construction, and indexing. Model weights were already cached. Two independent groups ran on separate RTX 5090 GPUs, with one GPU per pipeline; these small-document timings do not establish general throughput.
+
+Each saved index was queried from a new CLI process using its two published questions. All ten responses contained the requested reference facts. Full answer faithfulness remains a limitation: the iOS response correctly gave 51% for iOS 9 but reversed the additional iOS 8 and earlier-version percentages. Entity types guide extraction rather than enforce a strict schema; two graphs also contained an `UNKNOWN` node.
+
+The built wheel was installed in a separate environment outside the checkout. Its bundled adapter successfully ran real MinerU Standard on one PDF page, honored `--max-pages 1`, and reused the parsed assets on the second call. Offline checks passed: **67 core tests** and **3 separate MinerU adapter tests**. Failure-path tests verify that a missing runtime, parser failure, or missing output image prevents graph/model initialization.
+
+## Earlier synthetic-document results (November 2)
 
 | Check | Result |
 | --- | --- |
@@ -16,7 +34,7 @@ Validated on November 2, 2026 (UTC), using synthetic documents, the included doc
 
 The test document identifies Lina Torres as Project Vega's manager, with a USD 42,000 budget, USD 20,000 allocated to deployment, and a target of 320 new library members. The scanned version has no selectable text. Both input paths used the same three questions and default graph refinement.
 
-## Document tutorial checks
+## Earlier document tutorial checks (November 2)
 
 The five [document examples](examples.md) were also run through the CLI with `egs/configs/openrouter.yaml`, GME on an RTX 5090, and separate fresh workspaces. This baseline run used the default entity types, before the per-document configurations were added. Every PDF contains two pages. The image-only presentation was first parsed with MinerU 4.1.3 in `standard` / `ocr` mode; the other four PDFs were ingested directly.
 
@@ -32,9 +50,9 @@ The ten published questions returned their reference facts after refining one ch
 
 These checks do not establish full answer faithfulness. For example, the low-current charging answer included the two expected facts but also added an unsupported claim about incomplete charging. The [reference answers](../egs/document_examples/ANSWERS.md) contain only facts supported by the excerpts. Model responses still need to be checked against the source pages.
 
-The later `egs/document_examples/configs/*.yaml` presets define separate entity vocabularies for all five document types. Configuration loading, tutorial command consistency, and workspace invalidation after changing entity types were checked locally. Live generation has not been rerun with these presets; the answer results above apply to the shared baseline configuration.
+These baseline answer results apply to the shared configuration. The later per-document entity vocabularies have now been tested with automatic MinerU preprocessing in the November 3 run above.
 
-## Tested environment
+## Shared environment and earlier timing details
 
 | Component | Version / configuration |
 | --- | --- |

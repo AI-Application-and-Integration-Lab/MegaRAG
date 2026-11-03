@@ -37,3 +37,4 @@ jobs:
           megarag init
           megarag demo
           python -c "from megarag import MegaRAG; from megarag.llms.openai import gpt_4o_mini_complete"
+          python -c "import pathlib, subprocess, sys; import megarag.inputs as inputs; subprocess.run([sys.executable, str(pathlib.Path(inputs.__file__).with_name('mineru_adapter.py')), '--help'], check=True)"

@@ -11,7 +11,9 @@ Validation includes offline tests, package builds, and a [live integration run](
 - Extraction cache invalidation for changed image contents and model fingerprints.
 - OpenAI, OpenRouter, SGLang, and vLLM preset requests through the real OpenAI SDK with a local HTTP substitute: authentication, image payloads, structured output, and extra request parameters.
 - TXT, JSONL, and legacy Markdown question inputs, including Chinese text.
-- Generated sample PDF, page extraction, and scanned-PDF guidance.
+- Automatic MinerU preprocessing for both text and image-only PDFs, parser failures before model loading, and reuse of complete parsed assets on retries.
+- Parser cache invalidation for changed PDFs, page limits, or missing assets; failed attempts cannot become successful cache entries.
+- Prepared page JSON remains usable without a MinerU runtime; old pipeline fingerprints require rebuilding.
 - PDF ingestion, graph/vector persistence, two-step querying, and cache reuse through the CLI, using substitute models and real local storage.
 - Repeated page text and image-only pages retain distinct chunks.
 - Empty extraction and empty retrieval return normally; refinement failures remain failed rather than being reported as successful ingestion.
@@ -43,6 +45,6 @@ The dedicated CI job uses MinerU 4.1.3. Tests parse a real 12-page PDF in `flash
 
 ## Live integration and remaining coverage
 
-The [live validation report](live-validation.md) records the tested model revisions, CUDA environment, OCR settings, and results. Both native and scanned two-page PDFs passed their factual checks, and a fresh-process CLI query reused the saved answer without another API call.
+The [live validation report](live-validation.md) records the tested model revisions, CUDA environment, OCR settings, and results. All five two-page document examples completed automatic MinerU preprocessing, graph construction with their own entity types, and saved-index queries. An installed-wheel check also ran the bundled parser outside the checkout and reused its cached output. Earlier synthetic-document checks covered native/scanned PDFs and query-cache reuse.
 
 OpenAI direct inference remains unverified because the test account had no remaining credit. SGLang/vLLM deployments, other hardware and languages, large documents, and broader answer/OCR quality still need separate evaluation.
