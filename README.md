@@ -4,7 +4,7 @@
 
 Multimodal graph-based retrieval for document question answering. MegaRAG combines a knowledge graph with page-image retrieval to answer questions across text, figures, and tables.
 
-[Paper](https://arxiv.org/abs/2512.20626) · [Model configuration](docs/models.md) · [MinerU workflow](docs/mineru.md) · [Troubleshooting](docs/troubleshooting.md)
+[Paper](https://aclanthology.org/2026.acl-long.2218/) · [Model configuration](docs/models.md) · [MinerU workflow](docs/mineru.md) · [Troubleshooting](docs/troubleshooting.md)
 
 Accepted to ACL 2026.
 
@@ -114,7 +114,7 @@ Tests use model and API substitutes; they do not download model weights or incur
   author={Hsiao, Chi-Hsiang and Wang, Yi-Cheng and Lin, Tzung-Sheng and Yeh, Yi-Ren and Chen, Chu-Song},
   booktitle={Proceedings of the 64th Annual Meeting of the Association for Computational Linguistics (ACL)},
   year={2026},
-  url={https://arxiv.org/abs/2512.20626}
+  url={https://aclanthology.org/2026.acl-long.2218/}
 }
 ```
 
