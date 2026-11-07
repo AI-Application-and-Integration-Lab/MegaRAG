@@ -11,8 +11,6 @@ Multimodal graph-based retrieval for document question answering. MegaRAG combin
 
 [Paper](https://aclanthology.org/2026.acl-long.2218/) · [Model configuration](docs/models.md) · [MinerU workflow](docs/mineru.md) · [Troubleshooting](docs/troubleshooting.md)
 
-Accepted to ACL 2026.
-
 <a id="install"></a>
 
 ## 📦 Install
