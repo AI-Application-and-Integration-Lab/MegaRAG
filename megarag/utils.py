@@ -1,26 +1,8 @@
 import json
 import hashlib
 from pathlib import Path
-import logging
-import logging.handlers
-import os
-import re
 
-import pandas as pd
-import matplotlib.pyplot as plt
-
-from typing import (
-    Any,
-    AsyncIterator,
-    Callable,
-    Iterator,
-    cast,
-    final,
-    Literal,
-    Optional,
-    List,
-    Dict,
-)
+from typing import Optional
 
 from lightrag.utils import (
     compute_args_hash,
@@ -147,6 +129,8 @@ def plot_waterfall_from_jsonl(jsonl_path: str, trace_id: Optional[str] = None,
 
     Requirements: pandas, matplotlib. Install: pip install pandas matplotlib
     """
+    import pandas as pd
+    import matplotlib.pyplot as plt
 
     # Stream read JSONL to keep memory small; collect only the chosen trace
     rows = []

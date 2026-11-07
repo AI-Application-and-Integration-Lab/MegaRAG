@@ -8,10 +8,7 @@ from PIL import Image
 from typing import Any, final
 from dataclasses import dataclass, asdict
 
-from lightrag.utils import (
-    logger,
-    compute_mdhash_id,
-)
+from lightrag.utils import logger
 from nano_vectordb import NanoVectorDB
 from nano_vectordb.dbs import (
     DataBase,
@@ -25,7 +22,6 @@ from lightrag.kg.shared_storage import set_all_update_flags
 
 PIL.Image.MAX_IMAGE_PIXELS = None
 
-from dataclasses import dataclass
 from typing import Literal
 
 @dataclass
@@ -201,13 +197,11 @@ class NanoMMVectorDBStorage(NanoVectorDBStorage):
             for k, v in data.items()
         ]
         keys = list(list(data.values())[0].keys())
-        contents, page_imgs, fig_imgs = [], [], []
+        contents, page_imgs = [], []
         if "content" in keys:
             contents  = [v["content"] for v in data.values()]
         if "page_img" in keys:
             page_imgs = [Image.open(v["page_img"]).convert("RGB") for v in data.values()]
-        if "fig_imgs" in keys:
-            fig_imgs = [v["fig_imgs"] for v in data.values()]
 
         if len(page_imgs) > 0:
             batches = [

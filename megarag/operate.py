@@ -1,13 +1,9 @@
 import re
 import os
 import json
-import time
 import asyncio
 
-from collections import (
-    Counter, 
-    defaultdict
-)
+from collections import defaultdict
 from functools import partial
 from dataclasses import replace
 
@@ -30,21 +26,17 @@ from lightrag.utils import (
     split_string_by_multi_markers,
     truncate_list_by_token_size,
     process_combine_contexts,
-    compute_args_hash,
     handle_cache,
     save_to_cache,
     CacheData,
     get_conversation_turns,
-    # use_llm_func_with_cache,
     update_chunk_cache_list,
-    remove_think_tags,
 )
 
 from lightrag.kg.shared_storage import get_storage_keyed_lock
 from lightrag.operate import (
     _merge_nodes_then_upsert,
     _merge_edges_then_upsert,
-    _build_query_context,
     _get_node_data,
     _get_edge_data,
     _find_most_related_text_unit_from_entities,
@@ -58,7 +50,6 @@ from lightrag.constants import (
     DEFAULT_MAX_ENTITY_TOKENS,
     DEFAULT_MAX_RELATION_TOKENS,
     DEFAULT_MAX_TOTAL_TOKENS,
-    DEFAULT_RELATED_CHUNK_NUMBER,
 )
 
 from megarag.prompt import PROMPTS
