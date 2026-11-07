@@ -1,5 +1,10 @@
 # MegaRAG
 
+<p align="center">
+  <a href="https://aclanthology.org/2026.acl-long.2218/"><img src="https://img.shields.io/badge/ACL%202026-Paper-blue.svg" alt="Paper at ACL 2026"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-custom-lightgrey" alt="Custom license"></a>
+</p>
+
 > ✨ **Update (2026-11-02):** Simpler setup and configurable LLM APIs. [Quickstart](#quickstart) · [API examples](docs/models.md)
 
 Multimodal graph-based retrieval for document question answering. MegaRAG combines a knowledge graph with page-image retrieval to answer questions across text, figures, and tables.
