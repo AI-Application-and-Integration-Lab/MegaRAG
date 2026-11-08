@@ -1,4 +1,6 @@
-# MegaRAG
+<p align="center">
+  <img src="docs/assets/megarag-banner.png" alt="MegaRAG — Multimodal Graph-based RAG" width="100%">
+</p>
 
 <p align="center">
   <a href="https://aclanthology.org/2026.acl-long.2218/"><img src="https://img.shields.io/badge/ACL%202026-Paper-blue.svg" alt="Paper at ACL 2026"></a>
