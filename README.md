@@ -20,7 +20,7 @@ Multimodal graph-based retrieval for document question answering. MegaRAG combin
 Use Python 3.10–3.12; Python 3.11 is recommended. The default setup uses a local GME embedding model and a vision-capable OpenAI API model. A CUDA GPU is recommended for embedding inference; CPU execution is supported but slower.
 
 ```bash
-git clone --branch feat/cli-config https://github.com/AI-Application-and-Integration-Lab/MegaRAG.git
+git clone https://github.com/AI-Application-and-Integration-Lab/MegaRAG.git
 cd MegaRAG
 python3.11 -m venv .venv
 source .venv/bin/activate
