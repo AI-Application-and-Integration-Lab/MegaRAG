@@ -1,6 +1,5 @@
 import os
 import fitz
-import math
 import argparse
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed

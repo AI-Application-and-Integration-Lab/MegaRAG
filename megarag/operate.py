@@ -1,14 +1,11 @@
 import re
 import os
 import json
-import time
 import asyncio
 
-from collections import (
-    Counter, 
-    defaultdict
-)
+from collections import defaultdict
 from functools import partial
+from dataclasses import replace
 
 from lightrag.base import (
     BaseGraphStorage,
@@ -29,21 +26,17 @@ from lightrag.utils import (
     split_string_by_multi_markers,
     truncate_list_by_token_size,
     process_combine_contexts,
-    compute_args_hash,
     handle_cache,
     save_to_cache,
     CacheData,
     get_conversation_turns,
-    # use_llm_func_with_cache,
     update_chunk_cache_list,
-    remove_think_tags,
 )
 
 from lightrag.kg.shared_storage import get_storage_keyed_lock
 from lightrag.operate import (
     _merge_nodes_then_upsert,
     _merge_edges_then_upsert,
-    _build_query_context,
     _get_node_data,
     _get_edge_data,
     _find_most_related_text_unit_from_entities,
@@ -57,16 +50,27 @@ from lightrag.constants import (
     DEFAULT_MAX_ENTITY_TOKENS,
     DEFAULT_MAX_RELATION_TOKENS,
     DEFAULT_MAX_TOTAL_TOKENS,
-    DEFAULT_RELATED_CHUNK_NUMBER,
 )
 
 from megarag.prompt import PROMPTS
-from megarag.utils import use_llm_func_with_cache
+from megarag.utils import use_llm_func_with_cache, query_cache_hash
 
 from typing import (
     Any, 
     AsyncIterator
 )
+
+async def _gather_tasks(tasks):
+    """Cancel remaining work and collect every exception before propagating failure."""
+    try:
+        return await asyncio.gather(*tasks)
+    except BaseException:
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        raise
+
 
 def chunking_by_token_size(
     tokenizer: Tokenizer,
@@ -146,10 +150,10 @@ def chunking_by_token_or_page(
             text     = content[str(index)]['text']
             
             # Skip the empty page.
-            if len(fig_imgs) == 0 and len(text) == 0:
+            if not page_img and not fig_imgs and not text.strip():
                 continue
-            elif len(text) == 0:
-                text = "Please see the Figures."
+            elif not text.strip():
+                text = "Please see the page image and figures."
 
             tokens = tokenizer.encode(text)
             chunk_content = tokenizer.decode(tokens)
@@ -686,10 +690,7 @@ async def _build_query_context_with_image(
             )
             chunk_ids = [d['id'] for d in vector_chunks]
             chunks    = await text_chunks_db.get_by_ids(chunk_ids)
-            if 'page_img' in chunks[0]:
-                page_imgs = [chunk['page_img'] for chunk in chunks]
-                # for i, chunk in enumerate(vector_chunks):
-                #     chunk['page_img'] = page_imgs[i]
+            page_imgs = [chunk["page_img"] for chunk in chunks if chunk and chunk.get("page_img")]
             all_chunks.extend(vector_chunks)
             
         # Store original data from both sources
@@ -1239,22 +1240,11 @@ async def merge_nodes_and_edges(
     for edge_key, edges in all_edges.items():
         tasks.append(asyncio.create_task(_locked_process_edges(edge_key, edges)))
 
+    if not tasks:
+        return
+
     # Execute all tasks in parallel with semaphore control and early failure detection
-    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
-
-    # Check if any task raised an exception
-    for task in done:
-        if task.exception():
-            # If a task failed, cancel all pending tasks
-            for pending_task in pending:
-                pending_task.cancel()
-
-            # Wait for cancellation to complete
-            if pending:
-                await asyncio.wait(pending)
-
-            # Re-raise the exception to notify the caller
-            raise task.exception()
+    await _gather_tasks(tasks)
 
     # If all tasks completed successfully, collect results
     # (No need to collect results since these tasks don't return values)
@@ -1267,6 +1257,9 @@ async def extract_entities(
     llm_response_cache: BaseKVStorage | None = None,
     text_chunks_storage: BaseKVStorage | None = None,
 ) -> list:
+    if not chunks:
+        return []
+
     use_llm_func: callable = global_config["llm_model_func"]
     entity_extract_max_gleaning = global_config["entity_extract_max_gleaning"]
     
@@ -1493,22 +1486,7 @@ async def extract_entities(
 
     # Wait for tasks to complete or for the first exception to occur
     # This allows us to cancel remaining tasks if any task fails
-    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
-
-    # Check if any task raised an exception
-    for task in done:
-        if task.exception():
-            # If a task failed, cancel all pending tasks
-            # This prevents unnecessary processing since the parent function will abort anyway
-            for pending_task in pending:
-                pending_task.cancel()
-
-            # Wait for cancellation to complete
-            if pending:
-                await asyncio.wait(pending)
-
-            # Re-raise the exception to notify the caller
-            raise task.exception()
+    await _gather_tasks(tasks)
 
     # If all tasks completed successfully, collect results
     chunk_results = [task.result() for task in tasks]
@@ -1528,11 +1506,14 @@ async def extract_entities_refinement(
     llm_response_cache: BaseKVStorage | None = None,
     text_chunks_storage: BaseKVStorage | None = None,
 ) -> list:
+    if not chunks:
+        return []
+    if len(chunk_results) != len(chunks):
+        raise ValueError("Extraction results must align with the input chunks")
+    # Extraction returns results in input order, including empty results.
     chunk_results_at_stage_one = {
-        list(res[0].values())[0][0]['source_id']: {
-            'nodes': res[0],
-            'edges': res[1],
-        } for res in chunk_results
+        key: {"nodes": result[0], "edges": result[1]}
+        for key, result in zip(chunks, chunk_results)
     }
 
     use_llm_func: callable = global_config["llm_model_func"]
@@ -1799,6 +1780,8 @@ async def extract_entities_refinement(
             query_param=query_param,
         )
         # remove chunk texts
+        if subgraph is None:
+            return None
         subgraph = subgraph.split('-----Document Chunks(DC)-----')[0]
         return subgraph
     
@@ -1817,22 +1800,7 @@ async def extract_entities_refinement(
 
     # Wait for tasks to complete or for the first exception to occur
     # This allows us to cancel remaining tasks if any task fails
-    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
-
-    # Check if any task raised an exception
-    for task in done:
-        if task.exception():
-            # If a task failed, cancel all pending tasks
-            # This prevents unnecessary processing since the parent function will abort anyway
-            for pending_task in pending:
-                pending_task.cancel()
-
-            # Wait for cancellation to complete
-            if pending:
-                await asyncio.wait(pending)
-
-            # Re-raise the exception to notify the caller
-            raise task.exception()
+    await _gather_tasks(tasks)
 
     # If all tasks completed successfully, collect results
     chunk_results = [task.result() for task in tasks]
@@ -1857,7 +1825,7 @@ async def naive_query(
         use_model_func = partial(use_model_func, _priority=5)
 
     # Handle cache
-    args_hash = compute_args_hash(query_param.mode, query)
+    args_hash = query_cache_hash(query, query_param, global_config, system_prompt)
     cached_response, quantized, min_val, max_val = await handle_cache(
         hashing_kv, args_hash, query, query_param.mode, cache_type="query"
     )
@@ -1934,6 +1902,8 @@ async def naive_query(
     )
 
     logger.info(f"Final context: {len(processed_chunks)} chunks")
+    if not processed_chunks:
+        return PROMPTS["fail_response"]
 
     # Build text_units_context from processed chunks
     text_units_context, chunk_ids = [], []
@@ -1948,8 +1918,8 @@ async def naive_query(
         chunk_ids.append(chunk['id'])
     chunks = await text_chunks_db.get_by_ids(chunk_ids)
     page_imgs_str = ""
-    if 'page_img' in chunks[0]:
-        page_imgs = [chunk['page_img'] for chunk in chunks]
+    page_imgs = [chunk["page_img"] for chunk in chunks if chunk and chunk.get("page_img")]
+    if page_imgs:
         page_imgs_str = json.dumps({f"image_{i}": f"filename:{p.split('/')[-1]}" for i, p in enumerate(page_imgs)}, ensure_ascii=False)
 
     text_units_str = json.dumps(text_units_context, ensure_ascii=False)
@@ -2004,19 +1974,8 @@ async def naive_query(
         stream=query_param.stream,
     )
 
-    if isinstance(response, str) and len(response) > len(sys_prompt):
-        response = (
-            response[len(sys_prompt) :]
-            .replace(sys_prompt, "")
-            .replace("user", "")
-            .replace("model", "")
-            .replace(query, "")
-            .replace("<system>", "")
-            .replace("</system>", "")
-            .strip()
-        )
 
-    if hashing_kv.global_config.get("enable_llm_cache"):
+    if hashing_kv is not None and isinstance(response, str) and hashing_kv.global_config.get("enable_llm_cache"):
         # Save to cache
         await save_to_cache(
             hashing_kv,
@@ -2054,7 +2013,7 @@ async def kg_query(
         use_model_func = partial(use_model_func, _priority=5)
 
     # Handle cache
-    args_hash = compute_args_hash(query_param.mode, query)
+    args_hash = query_cache_hash(query, query_param, global_config, system_prompt)
     cached_response, quantized, min_val, max_val = await handle_cache(
         hashing_kv, args_hash, query, query_param.mode, cache_type="query"
     )
@@ -2067,6 +2026,9 @@ async def kg_query(
 
     logger.debug(f"High-level keywords: {hl_keywords}")
     logger.debug(f"Low-level  keywords: {ll_keywords}")
+
+    cache_mode = query_param.mode
+    query_param = replace(query_param)
 
     # Handle empty keywords
     if hl_keywords == [] and ll_keywords == []:
@@ -2089,7 +2051,7 @@ async def kg_query(
     hl_keywords_str = ", ".join(hl_keywords) if hl_keywords else ""
 
     # Build context
-    context, page_imgs = await _build_query_context_with_image(
+    context_result = await _build_query_context_with_image(
         query,
         ll_keywords_str,
         hl_keywords_str,
@@ -2100,6 +2062,10 @@ async def kg_query(
         query_param,
         chunks_vdb,
     )
+
+    if context_result is None:
+        return PROMPTS["fail_response"]
+    context, page_imgs = context_result
 
     if query_param.only_need_context:
         return context if context is not None else PROMPTS["fail_response"]
@@ -2141,18 +2107,8 @@ async def kg_query(
         stream=query_param.stream,
         input_images=page_imgs,
     )
-    if isinstance(response, str) and len(response) > len(sys_prompt):
-        response = (
-            response.replace(sys_prompt, "")
-            .replace("user", "")
-            .replace("model", "")
-            .replace(query, "")
-            .replace("<system>", "")
-            .replace("</system>", "")
-            .strip()
-        )
 
-    if hashing_kv.global_config.get("enable_llm_cache"):
+    if hashing_kv is not None and isinstance(response, str) and hashing_kv.global_config.get("enable_llm_cache"):
         # Save to cache
         await save_to_cache(
             hashing_kv,
@@ -2163,7 +2119,7 @@ async def kg_query(
                 quantized=quantized,
                 min_val=min_val,
                 max_val=max_val,
-                mode=query_param.mode,
+                mode=cache_mode,
                 cache_type="query",
             ),
         )
@@ -2189,18 +2145,14 @@ async def kg_two_step_query(
         # Apply higher priority (5) to query relation LLM function
         use_model_func = partial(use_model_func, _priority=5)
     # Handle cache
-    args_hash = compute_args_hash(query_param.mode, query)
+    args_hash = query_cache_hash(query, query_param, global_config, system_prompt)
     cached_response, quantized, min_val, max_val = await handle_cache(
         hashing_kv, args_hash, query, query_param.mode, cache_type="query"
     )
     if cached_response is not None:
         return cached_response
 
-    hybrid_param = QueryParam(
-        mode='hybrid',
-        chunk_top_k=query_param.chunk_top_k,
-        enable_rerank=False
-    )
+    hybrid_param = replace(query_param, mode="hybrid", stream=False)
     kg_task = kg_query(
         query,
         knowledge_graph_inst,
@@ -2213,11 +2165,7 @@ async def kg_two_step_query(
         system_prompt=system_prompt,
         chunks_vdb=chunks_vdb,
     )
-    naive_param = QueryParam(
-        mode='naive',
-        chunk_top_k=query_param.chunk_top_k,
-        enable_rerank=False
-    )
+    naive_param = replace(query_param, mode="naive", stream=False)
     naive_task = naive_query(
         query,
         chunks_vdb,
@@ -2229,6 +2177,9 @@ async def kg_two_step_query(
     )
     kg_response, naive_response = await asyncio.gather(kg_task, naive_task)
 
+    if query_param.only_need_context or query_param.only_need_prompt:
+        return f"---Graph---\n{kg_response}\n\n---Vector---\n{naive_response}"
+
     sys_prompt = PROMPTS["rag_two_step_response"].format(
         query=query,
         kg_answer=kg_response,
@@ -2239,18 +2190,8 @@ async def kg_two_step_query(
         system_prompt=sys_prompt,
         stream=query_param.stream
     )
-    if isinstance(response, str) and len(response) > len(sys_prompt):
-        response = (
-            response.replace(sys_prompt, "")
-            .replace("user", "")
-            .replace("model", "")
-            .replace(query, "")
-            .replace("<system>", "")
-            .replace("</system>", "")
-            .strip()
-        )
 
-    if hashing_kv.global_config.get("enable_llm_cache"):
+    if hashing_kv is not None and isinstance(response, str) and hashing_kv.global_config.get("enable_llm_cache"):
         # Save to cache
         await save_to_cache(
             hashing_kv,

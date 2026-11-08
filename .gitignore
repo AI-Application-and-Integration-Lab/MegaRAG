@@ -8,3 +8,12 @@ egs/*/data/
 env.sh
 lib
 !lib/.gitkeep
+.venv/
+.venv-mineru/
+parsed/
+build/
+dist/
+.pytest_cache/
+demo/
+workspace/
+megarag.yaml

@@ -1,0 +1,40 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  mineru:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -r requirements_mineru.txt pytest
+      - run: python -m pytest -q tests/test_mineru_adapter.py
+  offline:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -e ".[pdf,dev]"
+      - run: python -m pytest -q
+      - run: python -m build
+      - name: Validate installed wheel outside checkout
+        shell: bash
+        run: |
+          python -m pip uninstall -y megarag
+          python -m pip install --no-deps dist/*.whl
+          cd "$(mktemp -d)"
+          megarag --help
+          megarag init
+          megarag demo
+          python -c "from megarag import MegaRAG; from megarag.llms.openai import gpt_4o_mini_complete"
+          python -c "import pathlib, subprocess, sys; import megarag.inputs as inputs; subprocess.run([sys.executable, str(pathlib.Path(inputs.__file__).with_name('mineru_adapter.py')), '--help'], check=True)"

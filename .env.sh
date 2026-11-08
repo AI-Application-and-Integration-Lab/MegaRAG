@@ -1,3 +1,6 @@
-# Fill these in:
-export OPENAI_API_KEY="your-real-key"
-export MINERU_PATH=".../miniconda3/envs/mineru/bin"   # folder that contains 'magic-pdf'
+# Copy to env.sh and set the key required by your chosen configuration.
+export OPENAI_API_KEY="your-api-key"
+export MINERU_PYTHON="/absolute/path/to/MegaRAG/.venv-mineru/bin/python"
+# Optional: use the same absolute config path for build and query recipes.
+# export MEGARAG_CONFIG="/absolute/path/to/MegaRAG/egs/configs/openrouter.yaml"
+# export OPENROUTER_API_KEY="your-api-key"

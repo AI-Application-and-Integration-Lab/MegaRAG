@@ -1,0 +1,15 @@
+# Research methods, models, and the concepts they operate on.
+# To change API providers, edit llm and keep addon_params.entity_types.
+llm:
+  model: gpt-4o-mini
+  base_url: https://api.openai.com/v1
+  api_key_env: OPENAI_API_KEY
+  structured_output: true
+addon_params:
+  language: English
+  entity_types:
+    - research_method
+    - model
+    - dataset
+    - evaluation_metric
+    - research_concept

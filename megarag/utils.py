@@ -1,24 +1,8 @@
 import json
-import logging
-import logging.handlers
-import os
-import re
+import hashlib
+from pathlib import Path
 
-import pandas as pd
-import matplotlib.pyplot as plt
-
-from typing import (
-    Any,
-    AsyncIterator,
-    Callable,
-    Iterator,
-    cast,
-    final,
-    Literal,
-    Optional,
-    List,
-    Dict,
-)
+from typing import Optional
 
 from lightrag.utils import (
     compute_args_hash,
@@ -69,9 +53,15 @@ async def use_llm_func_with_cache(
             _prompt = input_text
 
         if input_images:
-            _prompt = _prompt + "\n" + ", ".join(input_images)
+            _prompt = _prompt + "\n" + json.dumps([
+                [str(path), hashlib.sha256(Path(path).read_bytes()).hexdigest() if Path(path).is_file() else None]
+                for path in input_images
+            ])
 
-        arg_hash = compute_args_hash(_prompt)
+        arg_hash = compute_args_hash(
+            _prompt, llm_response_cache.global_config.get("addon_params", {}).get("_model_fingerprint", ""),
+            max_tokens,
+        )
         # Generate cache key for this LLM call
         cache_key = generate_cache_key("default", cache_type, arg_hash)
 
@@ -139,6 +129,8 @@ def plot_waterfall_from_jsonl(jsonl_path: str, trace_id: Optional[str] = None,
 
     Requirements: pandas, matplotlib. Install: pip install pandas matplotlib
     """
+    import pandas as pd
+    import matplotlib.pyplot as plt
 
     # Stream read JSONL to keep memory small; collect only the chosen trace
     rows = []
@@ -216,3 +208,15 @@ def plot_waterfall_from_jsonl(jsonl_path: str, trace_id: Optional[str] = None,
     fig.tight_layout()
     fig.savefig(outfile, dpi=150)
     return outfile
+
+
+def query_cache_hash(query, param, global_config, system_prompt=None):
+    """Include retrieval settings, model identity and index revision in query caches."""
+    return compute_args_hash(json.dumps({
+        "schema": 2,  # Invalidate answers from the earlier query/response handling.
+        "query": query,
+        "parameters": vars(param),
+        "system_prompt": system_prompt,
+        "model": global_config.get("llm_model_name"),
+        "addon_params": global_config.get("addon_params", {}),
+    }, sort_keys=True, default=str))

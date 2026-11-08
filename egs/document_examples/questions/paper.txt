@@ -1,0 +1,2 @@
+What clustering model does RAPTOR use, and why does it apply UMAP?
+What are the two retrieval strategies described for RAPTOR?

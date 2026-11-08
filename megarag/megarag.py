@@ -10,21 +10,14 @@ from typing import (
     Any,
     AsyncIterator,
     Callable,
-    Iterator,
     cast,
-    final,
-    Literal,
     Optional,
     List,
     Dict,
 )
 from functools import partial
 
-from dataclasses import (
-    asdict,
-    dataclass,
-    field
-)
+from dataclasses import asdict
 
 from datetime import (
     datetime,
@@ -34,17 +27,13 @@ from datetime import (
 from lightrag.kg.shared_storage import (
     get_namespace_data,
     get_pipeline_status_lock,
-    get_graph_db_lock,
 )
 
 from lightrag import LightRAG
 from lightrag.utils import (
-    Tokenizer,
     always_get_an_event_loop,
     logger,
-    clean_text,
     compute_mdhash_id,
-    get_content_summary,
     lazy_external_import,
 )
 from lightrag.base import (
@@ -53,11 +42,8 @@ from lightrag.base import (
     BaseVectorStorage,
     DocProcessingStatus,
     DocStatus,
-    DocStatusStorage,
     QueryParam,
     StorageNameSpace,
-    StoragesStatus,
-    DeletionResult,
 )
 
 from megarag.operate import (
@@ -556,7 +542,14 @@ class MegaRAG(LightRAG):
                                             }
 
                                             chunks: dict[str, Any] = {
-                                                compute_mdhash_id(dp["content"], prefix="chunk-"): {
+                                                compute_mdhash_id(
+                                                    json.dumps([
+                                                        doc_id, dp["chunk_order_index"],
+                                                        dp["content"], dp.get("page_img"),
+                                                        dp.get("fig_imgs", []),
+                                                    ], ensure_ascii=False),
+                                                    prefix="chunk-",
+                                                ): {
                                                     **dp,
                                                     "full_doc_id": doc_id,
                                                     "file_path": file_path,  # Attach the originating path to each chunk
@@ -869,6 +862,7 @@ class MegaRAG(LightRAG):
                                                 }
                                             }
                                         )
+                                        raise
 
                             except Exception as e:
                                 # Log error and update pipeline status
@@ -913,6 +907,7 @@ class MegaRAG(LightRAG):
                                         }
                                     }
                                 )
+                                raise
 
                         # Create processing tasks for all documents
                         doc_tasks = []

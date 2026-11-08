@@ -1,0 +1,8 @@
+# Match model to your server's --served-model-name (must support image inputs).
+llm:
+  model: my-vision-model
+  base_url: http://127.0.0.1:8000/v1
+  api_key_env: ""
+  structured_output: false
+  max_async: 2
+  timeout: 300

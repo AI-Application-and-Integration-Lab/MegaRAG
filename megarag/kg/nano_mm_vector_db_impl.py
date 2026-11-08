@@ -3,19 +3,12 @@ import os
 import PIL
 import asyncio
 import numpy as np
-import pipmaster as pm
 
 from PIL import Image
 from typing import Any, final
 from dataclasses import dataclass, asdict
 
-if not pm.is_installed("nano-vectordb"):
-    pm.install("nano-vectordb")
-
-from lightrag.utils import (
-    logger,
-    compute_mdhash_id,
-)
+from lightrag.utils import logger
 from nano_vectordb import NanoVectorDB
 from nano_vectordb.dbs import (
     DataBase,
@@ -25,10 +18,10 @@ from nano_vectordb.dbs import (
 )
 
 from lightrag.kg.nano_vector_db_impl import NanoVectorDBStorage
+from lightrag.kg.shared_storage import set_all_update_flags
 
 PIL.Image.MAX_IMAGE_PIXELS = None
 
-from dataclasses import dataclass
 from typing import Literal
 
 @dataclass
@@ -45,6 +38,8 @@ class DotProductVectorDB(NanoVectorDB):
             "matrix": np.array([], dtype=np.float32).reshape(0, self.embedding_dim),
         }
         storage: DataBase = load_storage(self.storage_file) or default_storage
+        # Loaded matrices originate from an immutable bytes buffer.
+        storage["matrix"] = storage["matrix"].copy()
         assert (
             storage["embedding_dim"] == self.embedding_dim
         ), f"Embedding dim mismatch, expected: {self.embedding_dim}, but loaded: {storage['embedding_dim']}"
@@ -82,7 +77,7 @@ class DotProductVectorDB(NanoVectorDB):
                     i
                     for i, data in enumerate(self._NanoVectorDB__storage["data"])
                     if filter_lambda(data)
-                ]
+                ], dtype=np.intp,
             )
             use_matrix = self._NanoVectorDB__storage["matrix"][filter_index]
 
@@ -90,7 +85,7 @@ class DotProductVectorDB(NanoVectorDB):
         q = query.astype(np.float32, copy=False)
         scores = use_matrix @ q  # shape: (num_candidates,)
         # Take top_k by score (descending).
-        if top_k <= 0:
+        if top_k <= 0 or not scores.size:
             return []
         # Use argpartition for efficiency on large arrays; then sort those top indices.
         k = min(top_k, scores.shape[0])
@@ -101,8 +96,8 @@ class DotProductVectorDB(NanoVectorDB):
         results = []
         for abs_i, rel_i in zip(sort_abs_index, top_idx):
             s = float(scores[rel_i])
-            # if better_than_threshold is not None and s < better_than_threshold:
-            #     break
+            if better_than_threshold is not None and s < better_than_threshold:
+                break
             results.append({**self._NanoVectorDB__storage["data"][abs_i], f_METRICS: s})
         return results
 
@@ -145,7 +140,42 @@ class NanoMMVectorDBStorage(NanoVectorDBStorage):
             metric='dot',
         )
 
-    # This class uses cosine for similarity calculate, which may cause some problems.
+    def _new_client(self):
+        return DotProductVectorDB(
+            self.embedding_func.embedding_dim,
+            storage_file=self._client_file_name,
+        )
+
+    async def _get_client(self):
+        async with self._storage_lock:
+            if self.storage_updated.value:
+                self._client = self._new_client()
+                self.storage_updated.value = False
+            return self._client
+
+    async def index_done_callback(self):
+        async with self._storage_lock:
+            if self.storage_updated.value:
+                self._client = self._new_client()
+                self.storage_updated.value = False
+                return False
+            self._client.save()
+            await set_all_update_flags(self.namespace)
+            self.storage_updated.value = False
+            return True
+
+    async def drop(self):
+        try:
+            async with self._storage_lock:
+                if os.path.exists(self._client_file_name):
+                    os.remove(self._client_file_name)
+                self._client = self._new_client()
+                await set_all_update_flags(self.namespace)
+                self.storage_updated.value = False
+            return {"status": "success", "message": "data dropped"}
+        except Exception as exc:
+            return {"status": "error", "message": str(exc)}
+
     async def upsert(self, data: dict[str, dict[str, Any]]) -> None:
         """
         Importance notes:
@@ -167,13 +197,11 @@ class NanoMMVectorDBStorage(NanoVectorDBStorage):
             for k, v in data.items()
         ]
         keys = list(list(data.values())[0].keys())
-        contents, page_imgs, fig_imgs = [], [], []
+        contents, page_imgs = [], []
         if "content" in keys:
             contents  = [v["content"] for v in data.values()]
         if "page_img" in keys:
             page_imgs = [Image.open(v["page_img"]).convert("RGB") for v in data.values()]
-        if "fig_imgs" in keys:
-            fig_imgs = [v["fig_imgs"] for v in data.values()]
 
         if len(page_imgs) > 0:
             batches = [
@@ -201,14 +229,16 @@ class NanoMMVectorDBStorage(NanoVectorDBStorage):
             results = client.upsert(datas=list_data)
             return results
         else:
-            # sometimes the embedding is not returned correctly. just log it.
-            logger.error(
+            raise ValueError(
                 f"embedding is not 1-1 with data, {len(embeddings)} != {len(list_data)}"
             )
 
     async def query(
         self, query: str, top_k: int, ids: list[str] | None = None
     ) -> list[dict[str, Any]]:
+        if ids == [] or top_k <= 0:
+            return []
+        allowed_ids = set(ids) if ids is not None else None
         # Execute embedding outside of lock to avoid improve cocurrent
         embedding = await self.embedding_func(
             texts=[query], is_query=True
@@ -218,6 +248,7 @@ class NanoMMVectorDBStorage(NanoVectorDBStorage):
         results = client.query(
             query=embedding,
             top_k=top_k,
+            filter_lambda=(lambda row: row["__id__"] in allowed_ids) if allowed_ids is not None else None,
         )
         results = [
             {

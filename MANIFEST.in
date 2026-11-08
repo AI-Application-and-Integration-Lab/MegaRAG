@@ -1,0 +1,5 @@
+recursive-include docs *.md
+include docs/assets/megarag-banner.png
+recursive-include egs *.py *.sh *.yaml
+recursive-include egs/document_examples *.pdf *.txt *.json *.md
+include .env.sh requirements_mineru.txt

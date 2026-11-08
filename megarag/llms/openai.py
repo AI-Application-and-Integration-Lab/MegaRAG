@@ -12,7 +12,6 @@ from typing import (
     Union
 )
 from openai import (
-    AsyncOpenAI,
     APIConnectionError,
     RateLimitError,
     APITimeoutError,
@@ -25,7 +24,6 @@ from tenacity import (
 )
 from lightrag.utils import (
     wrap_embedding_func_with_attrs,
-    locate_json_string_body_from_string,
     safe_unicode_decode,
     logger,
     VERBOSE_DEBUG,
@@ -47,7 +45,6 @@ async def gpt_4o_mini_complete(
 ) -> str:
     if history_messages is None:
         history_messages = []
-    keyword_extraction = kwargs.pop("keyword_extraction", None)
     if keyword_extraction:
         kwargs["response_format"] = GPTKeywordExtractionFormat
     return await openai_complete_if_cache(
