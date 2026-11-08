@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/megarag-banner.png" alt="MegaRAG — Multimodal Graph-based RAG" width="100%">
+  <img src="docs/assets/megarag-banner.png" alt="MegaRAG — Multimodal Graph-based RAG" width="80%">
 </p>
 
 <p align="center">
